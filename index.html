@@ -73,7 +73,7 @@ body{font-family:'Inter','Segoe UI',system-ui,-apple-system,Roboto,sans-serif;ba
 .side-saldo .ss-l{font-size:10.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;font-weight:700}
 .side-saldo .ss-v{font-size:19px;font-weight:800;letter-spacing:-.5px;font-variant-numeric:tabular-nums;margin-top:1px}
 .side-add{justify-content:center;font-size:14px;padding:11px}
-.side-foot{padding:12px 10px 2px;font-size:11px;color:var(--mut);border-top:1px solid var(--line);display:flex;align-items:center;gap:7px}
+.side-foot{padding:12px 10px 2px;font-size:11px;color:var(--mut);border-top:1px solid var(--line);display:flex;flex-direction:column;align-items:flex-start;gap:5px}
 .foot-nest{display:inline-grid;place-items:center;width:16px;height:16px;color:var(--mut);flex:none}
 .foot-nest svg{width:14px;height:14px}
 /* FAB (telemóvel) */
@@ -180,6 +180,9 @@ button.cicon:hover{transform:scale(1.08)}
 .bk-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 2px;border-bottom:1px solid var(--line)}
 .bk-row:last-child{border-bottom:0}
 .empty-tile{width:54px;height:54px;border-radius:15px;background:linear-gradient(135deg,var(--accd),var(--card2));display:grid;place-items:center;color:var(--txt);margin:0 auto 12px}
+.made-by{display:inline-flex;align-items:center;gap:6px;color:var(--mut);font-size:11px;text-decoration:none;transition:color .15s}
+.made-by:hover{color:var(--acc)}
+.made-by svg{width:13px;height:13px;flex:none}
 /* compreender a fatura */
 .fg-details>summary{cursor:pointer;font-size:13px;font-weight:700;color:var(--acc);display:flex;align-items:center;gap:7px;list-style:none}
 .fg-details>summary::-webkit-details-marker{display:none}
@@ -670,6 +673,7 @@ const I={
   wallet:'<path d="M3 7h15a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2h12M17 13h.01"/>',
   trend:'<path d="M3 17l6-6 4 4 8-8M15 7h6v6"/>',
   finger:'<path d="M12 11v3a8 8 0 01-1 4M8 14a4 4 0 014-4 4 4 0 014 4v1M6 12a6 6 0 0112 0v2a10 10 0 01-1 4M15 17a14 14 0 01-1 4M9.5 7.5a6 6 0 015 0"/>',
+  linkedin:'<path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-4 0v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/>',
   cash:'<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 9v6M18 9v6"/>',
   logout:'<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/>',
   scan:'<path d="M4 7V5a1 1 0 011-1h2M17 4h2a1 1 0 011 1v2M20 17v2a1 1 0 01-1 1h-2M7 20H5a1 1 0 01-1-1v-2M4 12h16"/>',
@@ -1018,7 +1022,7 @@ function render(){
   applyPalette();
   const logoInner = state.settings.logo ? `<img src="${state.settings.logo}" alt="logo">` : svg(I.nest);
   ['brandLogo','brandLogoM'].forEach(id=>{const el=document.getElementById(id);if(el){el.innerHTML=logoInner;el.style.background=state.settings.logo?'none':'';}});
-  const _sf=document.getElementById('sideFoot'); if(_sf)_sf.innerHTML=(state.settings.logo?`<span class="foot-nest">${svg(I.nest)}</span>`:'')+'Nesto · finanças privadas';
+  const _sf=document.getElementById('sideFoot'); if(_sf)_sf.innerHTML=`<div style="display:flex;align-items:center;gap:7px">${state.settings.logo?`<span class="foot-nest">${svg(I.nest)}</span>`:''}Nesto · finanças privadas</div><a class="made-by" href="https://www.linkedin.com/in/ldvale/" target="_blank" rel="noopener noreferrer" title="LinkedIn — Diogo du Valle">${svg(I.linkedin)}<span>Created by Diogo du Valle</span></a>`;
   const _ss=document.getElementById('sideSaldo'); if(_ss){ const sv=valeteAtual(); _ss.innerHTML=`<div class="ss-l">Saldo real</div><div class="ss-v ${sv!=null&&sv<0?'neg':''}">${sv!=null?fmt(sv):'definir →'}</div>`; }
   const TABS=[['resumo','Resumo',I.home],['grelha','Grelha',I.grid],['acerto','Dívida',I.scale],['poup','Poupanças',I.wallet],['previsao','Previsão',I.trend],['defs','Definições',I.gear]];
   document.getElementById('sidenav').innerHTML=TABS
@@ -2299,7 +2303,7 @@ function vDefs(m){
     </div>
   </div></details>
   </div>
-  <div class="foot-credit">Nesto · Finanças — app local e privada (os dados ficam neste dispositivo).</div>`;
+  <div class="foot-credit">Nesto · Finanças — app local e privada (os dados ficam neste dispositivo). <a class="made-by" href="https://www.linkedin.com/in/ldvale/" target="_blank" rel="noopener noreferrer" title="LinkedIn — Diogo du Valle">${svg(I.linkedin)}<span>Created by Diogo du Valle</span></a></div>`;
 }
 function catRow(c,child,lead,badge){return `<div class="catedit" style="${child?'padding-left:24px':''}">${child?'<span style="opacity:.4;margin-right:-2px">└</span>':(lead||'<span style="width:18px;display:inline-block;flex:none"></span>')}<button class="cicon ${c.icon&&CAT_ICONS[c.icon]?'':'dotcol'}" data-caticon="${c.id}" title="Escolher ícone e cor" style="width:28px;height:28px;background:${c.cor};color:#fff">${c.icon&&CAT_ICONS[c.icon]?`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${CAT_ICONS[c.icon]}"/></svg>`:''}</button><input class="pinp" value="${esc(c.nome)}" data-catname="${c.id}">${badge||''}${!child?`<button class="iconbtn" data-newsub="${c.id}" title="Adicionar sub-categoria">${svg(I.plus)}</button>`:''}<button class="iconbtn" data-movecat="${c.id}" title="Mover / re-aninhar">${svg(I.move)}</button><button class="iconbtn" data-delcat="${c.id}">${svg(I.trash)}</button></div>`;}
 function openCatIcon(catId){
@@ -3629,6 +3633,7 @@ function showLock(){
     <div id="lockMsg" style="color:#f87171;font-size:12px;height:15px;margin:4px 0 2px"></div>
     <div class="pad" id="lockPad"></div>
     ${hasBio?`<button id="lockBio" style="margin-top:16px;width:100%;display:inline-flex;align-items:center;justify-content:center;gap:8px;background:none;border:1px solid var(--line);color:var(--mut);padding:11px;border-radius:12px;cursor:pointer;font-size:14px">${svg(I.finger)} Entrar com biometria</button>`:''}
+    <a class="made-by" href="https://www.linkedin.com/in/ldvale/" target="_blank" rel="noopener noreferrer" style="margin-top:20px;opacity:.75" title="LinkedIn — Diogo du Valle">${svg(I.linkedin)}<span>Created by Diogo du Valle</span></a>
   </div>`;
   document.body.appendChild(d);
   lockRenderPad(); pinUpdate();
