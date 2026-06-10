@@ -798,6 +798,7 @@ function load(){
   state.dividas=state.dividas||[]; // gestor de dívidas (alguém me deve / eu devo)
   state.metas=state.metas||[];     // objetivos de poupança (envelopes)
   if(!state._iconMig){ (state.categorias||[]).forEach(c=>{ if(!c.icon){ const g=guessIcon(c.nome); if(g)c.icon=g; } }); state._iconMig=true; } // ícones por nome (1×)
+  Object.values(state.poupancas||{}).forEach(p=>(p.contas||[]).forEach(c=>{ if(!c.benef&&(c.nome||'').trim().toLowerCase()==='coverflex')c.benef=true; })); // conta legada 'Coverflex' → flag benef (cartão de benefícios genérico)
   if(state.settings.usaCofre===undefined){ state.settings.usaCofre = Object.values(state.poupancas||{}).some(p=>(p.contagem||[]).some(r=>(parseFloat(r.q)||0)>0)); } // cofre só para quem já o usava
   if(!state.acerto||!state.acerto.length) state.acerto=clone(EMBED_ACERTO);
   state.forecast=state.forecast||{}; const _anos=[...new Set(state.movimentos.filter(m=>m.tipo==='receita').map(m=>+m.data.slice(0,4)))].sort();
@@ -845,9 +846,10 @@ function ultimoAnoPoup(){const ks=Object.keys(state.poupancas||{}).sort();return
 /* conta real (saldo à ordem) — identificada pela flag c.real (fallback p/ nomes legados) */
 function valeteConta(){const p=state.poupancas[ultimoAnoPoup()];if(!p)return null;return (p.contas||[]).find(c=>c.real)||(p.contas||[]).find(c=>{const n=(c.nome||'').trim().toLowerCase();return n==='valete'||n==='conta';})||null;}
 function valeteAtual(){const c=valeteConta();return c?(parseFloat(c.valor)||0):null;}
-function coverflexConta(){const p=state.poupancas[ultimoAnoPoup()];if(!p)return null;return (p.contas||[]).find(c=>(c.nome||'').trim().toLowerCase()==='coverflex');}
-/* garante que existe conta Coverflex no ano corrente das poupanças (senão a receita/despesa Coverflex perde-se) */
-function ensureCoverflexConta(){const y=ultimoAnoPoup();let p=state.poupancas[y];if(!p){p={contas:[]};state.poupancas[y]=p;}if(!p.contas)p.contas=[];let c=p.contas.find(x=>(x.nome||'').trim().toLowerCase()==='coverflex');if(!c){c={nome:'Coverflex',valor:0};p.contas.push(c);}return c;}
+/* cartão de benefícios (Coverflex, Pluxee, Edenred…) — identificado pela flag c.benef; nome livre (renomeável) */
+function coverflexConta(){const p=state.poupancas[ultimoAnoPoup()];if(!p)return null;return (p.contas||[]).find(c=>c.benef)||(p.contas||[]).find(c=>(c.nome||'').trim().toLowerCase()==='coverflex');}
+/* garante que existe conta do cartão de benefícios no ano corrente (senão a receita em géneros perde-se) */
+function ensureCoverflexConta(){const y=ultimoAnoPoup();let p=state.poupancas[y];if(!p){p={contas:[]};state.poupancas[y]=p;}if(!p.contas)p.contas=[];let c=p.contas.find(x=>x.benef)||p.contas.find(x=>(x.nome||'').trim().toLowerCase()==='coverflex');if(c){c.benef=true;}else{c={nome:'Cartão de benefícios',valor:0,benef:true};p.contas.push(c);}return c;}
 function isCoverflexCat(catId){let c=cat(catId);if(!c)return false;if(c.coverflex)return true;const p=c.parent?cat(c.parent):null;return !!(p&&p.coverflex);}
 function isDescontoCat(catId){let c=cat(catId);if(!c)return false;if(c.desconto)return true;const p=c.parent?cat(c.parent):null;return !!(p&&p.desconto);}
 /* valor com sinal: descontos de receita (SS/IRS) entram como negativos; o resto positivo */
@@ -859,7 +861,7 @@ function contaDeMov(mv){return isCoverflexCat(mv.categoriaId)?coverflexConta():v
 function aplicaValete(mv){if(mv.cash)return;const c=contaDeMov(mv);if(!c)return;const delta=mv.tipo==='receita'?mv.valor:(mv.tipo==='despesa'?-mv.valor:0);if(!delta)return;c.valor=round2((parseFloat(c.valor)||0)+delta);mv.vAdj=delta;mv.vAdjConta=(c.nome||'').trim().toLowerCase();}
 /* dinheiro gasto (cash) desde a última contagem do Cofre — para mostrar o "Esperado" */
 function saidasDinheiro(){const base=(state.poupancas[ultimoAnoPoup()]||{}).contagemData||0;return round2(state.movimentos.filter(m=>m.tipo==='despesa'&&m.cash&&m.ts&&m.ts>base).reduce((a,m)=>a+m.valor,0));}
-function reverteValete(mv){if(!mv||!mv.vAdj)return;const p=state.poupancas[ultimoAnoPoup()];if(!p)return;const nm=(mv.vAdjConta||'');const c=(p.contas||[]).find(x=>(x.nome||'').trim().toLowerCase()===nm)||(nm==='coverflex'?coverflexConta():valeteConta());if(c)c.valor=round2((parseFloat(c.valor)||0)-mv.vAdj);}
+function reverteValete(mv){if(!mv||!mv.vAdj)return;const p=state.poupancas[ultimoAnoPoup()];if(!p)return;const nm=(mv.vAdjConta||'');const c=(p.contas||[]).find(x=>(x.nome||'').trim().toLowerCase()===nm)||((nm==='coverflex'||nm==='cartão de benefícios')?coverflexConta():valeteConta());if(c)c.valor=round2((parseFloat(c.valor)||0)-mv.vAdj);}
 /* DÉBITOS AGENDADOS (pendentes): faturas com débito futuro não abatem no Valete até chegar o dia.
    Ao abrir a app, os que já venceram (data<=hoje) tornam-se definitivos e abatem agora. */
 function liquidarPendentes(){
@@ -3461,7 +3463,7 @@ function mapReciboLinha(desc,tipo){ // tipo: 'R' remuneração / 'D' desconto
     return {catId:findOrCreateReceitaCat('Outros descontos',{desconto:true}),label:'Outros descontos'};
   }
   // remunerações
-  if(/alimenta|generos|géneros/.test(d)&&/generos|géneros|especie/.test(d))return {catId:findOrCreateReceitaCat('Coverflex',{coverflex:true}),label:'Coverflex'};
+  if(/alimenta|generos|géneros/.test(d)&&/generos|géneros|especie/.test(d)){const bc=state.categorias.find(x=>x.tipo==='receita'&&x.coverflex);return {catId:bc?bc.id:findOrCreateReceitaCat('Cartão de benefícios',{coverflex:true}),label:bc?bc.nome:'Cartão de benefícios'};}
   if(/alimenta/.test(d))return {catId:findOrCreateReceitaCat('Subsídios'),label:'Subsídios'};
   if(/vencimento|ordenado|salario/.test(d))return {catId:findOrCreateReceitaCat('Salário'),label:'Salário'};
   if(/ajuda/.test(d))return {catId:findOrCreateReceitaCat('Ajudas'),label:'Ajudas'};
@@ -3527,7 +3529,7 @@ function openReciboReview(p){
   };
   document.getElementById('back').innerHTML=`<div class="modal"><h2>${svg(I.scan)} Recibo importado <button class="close" data-close="1">&times;</button></h2>
   <div class="body">
-    <div class="hint" style="border-left:3px solid var(--acc)">Período detetado: <b>${MESES[mi]} ${year}</b>. O subsídio em géneros vai para o <b>Coverflex</b> (cartão) e o "Desconto Espécie" fica ignorado (anula-se com o subsídio). Confere e grava.</div>
+    <div class="hint" style="border-left:3px solid var(--acc)">Período detetado: <b>${MESES[mi]} ${year}</b>. O subsídio em géneros vai para o <b>cartão de benefícios</b> (Coverflex, Pluxee, Edenred…) e o "Desconto Espécie" fica ignorado (anula-se com o subsídio). Confere e grava.</div>
     <div class="f2">
       <div><label>Mês</label><select id="recMes">${MESES.map((x,i)=>`<option value="${i}" ${i===mi?'selected':''}>${x}</option>`).join('')}</select></div>
       <div><label>Ano</label><input id="recAno" type="number" step="1" value="${year}"></div>
@@ -3543,7 +3545,7 @@ function openReciboReview(p){
       <span>Líquido para a conta (banco)</span><span id="recLiq" class="pos">${fmt(tot.banco)}</span>
     </div>
     <div style="display:flex;justify-content:space-between;margin-top:2px;font-size:13px;color:var(--mut)">
-      <span>Para o Coverflex (cartão)</span><span id="recCov">${fmt(tot.coverflex)}</span>
+      <span>Para o cartão de benefícios</span><span id="recCov">${fmt(tot.coverflex)}</span>
     </div>
     ${p.totalPago!=null?`<div class="hint" id="recChk" style="margin-top:6px;${Math.abs(tot.banco-p.totalPago)<0.02?'border-left:3px solid var(--acc)':'border-left:3px solid var(--warn)'}">Total Pago no recibo: <b>${fmt(p.totalPago)}</b> ${Math.abs(tot.banco-p.totalPago)<0.02?'✓ bate certo com o líquido para a conta':'— confere as linhas.'}</div>`:''}
     <details><summary style="cursor:pointer;color:var(--mut);font-size:12px">Ver texto lido do PDF</summary><pre style="white-space:pre-wrap;max-height:150px;overflow:auto;font-size:11px;color:var(--mut);margin-top:6px">${esc(p.text.slice(0,2500))}</pre></details>
