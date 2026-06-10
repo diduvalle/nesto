@@ -1795,7 +1795,7 @@ function obCloudHtml(){
   if(fsOn()) return `<div class="ob-cloud ok"><span class="pill" style="background:var(--acc-16);color:var(--acc)">● ${esc(fsProvName())} ✓</span> <span style="font-size:12.5px;color:var(--mut)">${esc(_fsName||'pasta')} · ${cloudMiniStat()}</span>${_fsNeedPerm?` <button class="btn sm" id="fsReconnect">Reativar</button>`:''}<button class="btn sm" id="fsDisc" style="margin-left:auto">Desligar</button></div>`;
   return cloudSetupHtml();
 }
-let obStep=0,_obName='',_obCode='';
+let obStep=0,_obName='',_obCode='',_obCode2='';
 function obStepFields(){
   if(obStep===0) return `
       <div class="ob-field"><label>Como te chamas?</label>
@@ -1808,6 +1808,7 @@ function obStepFields(){
   if(obStep===1) return `
       <div class="ob-field"><label>Código de acesso</label>
         <span class="pin-wrap"><input id="obCode" type="password" autocomplete="new-password" inputmode="numeric" maxlength="12" placeholder="PIN — mínimo 4 dígitos" value="${esc(_obCode)}"><button type="button" class="eye-btn" data-eyetoggle="obCode" aria-label="Mostrar/ocultar PIN">${svg(I.eye)}</button></span>
+        <span class="pin-wrap" style="margin-top:8px"><input id="obCode2" type="password" autocomplete="new-password" inputmode="numeric" maxlength="12" placeholder="Confirmar PIN" value="${esc(_obCode2)}"><button type="button" class="eye-btn" data-eyetoggle="obCode2" aria-label="Mostrar/ocultar PIN">${svg(I.eye)}</button></span>
         <div id="obCodeMsg" style="display:none;color:#f87171;font-size:12px;margin-top:6px"></div>
         <p class="dsub" style="margin-top:6px">Pedido sempre que abres a app, para proteger os teus dados.</p></div>
       <div class="ob-field"><label>Biometria <span class="ob-opt">opcional</span></label>
@@ -1827,21 +1828,28 @@ function obRenderStep(){
     <div class="ob-foot">${obStep>0?`<button class="btn" id="obPrev">Anterior</button>`:'<span style="flex:none"></span>'}<div class="spacer"></div>${last?`<button class="btn primary" id="obDone">${svg(I.check)}Começar a usar o Nesto</button>`:`<button class="btn primary" id="obNext">Seguinte</button>`}</div>`;
   const fi=w.querySelector('#obStepBody input[type=text],#obStepBody input[inputmode=numeric]'); if(fi)setTimeout(()=>{try{fi.focus();}catch(_){}} ,40);
 }
-function obCapture(){ if(obStep===0){const n=document.getElementById('obName'); if(n)_obName=n.value.trim();} if(obStep===1){const c=document.getElementById('obCode'); if(c)_obCode=(c.value||'').trim();} }
+function obCapture(){ if(obStep===0){const n=document.getElementById('obName'); if(n)_obName=n.value.trim();} if(obStep===1){const c=document.getElementById('obCode'); if(c)_obCode=(c.value||'').trim(); const c2=document.getElementById('obCode2'); if(c2)_obCode2=(c2.value||'').trim();} }
+/* validação do PIN do onboarding: formato + confirmação iguais; devolve {msg,focus} ou null */
+function obPinError(){
+  if(!/^\d{4,}$/.test(_obCode))return {msg:'Define um PIN com pelo menos 4 dígitos para continuar.',focus:'obCode'};
+  if(_obCode!==_obCode2)return {msg:'Os PINs não coincidem — escreve o mesmo nos dois campos.',focus:'obCode2'};
+  return null;
+}
+function obShowPinError(err){ const m=document.getElementById('obCodeMsg'); if(m){m.textContent=err.msg;m.style.display='block';} const inp=document.getElementById(err.focus); if(inp)inp.focus(); }
 function obGo(delta){
   obCapture();
-  if(delta>0 && obStep===1 && !/^\d{4,}$/.test(_obCode)){ obRenderStep(); const m=document.getElementById('obCodeMsg'); if(m){m.textContent='Define um PIN com pelo menos 4 dígitos para continuar.';m.style.display='block';} const inp=document.getElementById('obCode'); if(inp)inp.focus(); return; }
+  if(delta>0 && obStep===1){ const err=obPinError(); if(err){ obRenderStep(); obShowPinError(err); return; } }
   obStep=Math.max(0,Math.min(2,obStep+delta)); obRenderStep();
 }
 function obFinish(){
   obCapture();
-  if(!/^\d{4,}$/.test(_obCode)){ obStep=1; obRenderStep(); const m=document.getElementById('obCodeMsg'); if(m){m.textContent='Define um PIN com pelo menos 4 dígitos para continuar.';m.style.display='block';} return; }
+  { const err=obPinError(); if(err){ obStep=1; obRenderStep(); obShowPinError(err); return; } }
   if(_obName)P()[0].nome=_obName; state.settings.codigo=_obCode; sessionStorage.setItem('nesto-unlock','1'); state.settings.onboarded=true;
   const ob=document.getElementById('onboard'); if(ob)ob.remove(); save(); render(); toast('Tudo pronto 🎉');
 }
 function showOnboarding(){
   if(document.getElementById('onboard'))return;
-  obStep=0; _obName=(P()[0].nome==='Eu'?'':P()[0].nome); _obCode='';
+  obStep=0; _obName=(P()[0].nome==='Eu'?'':P()[0].nome); _obCode=''; _obCode2='';
   const d=document.createElement('div'); d.id='onboard';
   d.style.cssText='position:fixed;inset:0;z-index:9998;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:18px;overflow:auto';
   d.innerHTML=`<div class="obbox">
