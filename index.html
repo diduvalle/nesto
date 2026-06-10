@@ -20,8 +20,8 @@
 <meta property="og:title" content="Nesto · Finanças pessoais">
 <meta property="og:description" content="Gestão financeira pessoal — resumo, grelha, orçamentos, poupanças e previsão. Privada, no teu dispositivo.">
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://diduvalle.github.io/nesto/">
-<meta property="og:image" content="https://diduvalle.github.io/nesto/og-image.png">
+<meta property="og:url" content="https://nesto.cr0x.org/">
+<meta property="og:image" content="https://nesto.cr0x.org/og-image.png">
 <meta property="og:image:type" content="image/png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
@@ -29,7 +29,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Nesto · Finanças pessoais">
 <meta name="twitter:description" content="Gestão financeira pessoal, privada no teu dispositivo.">
-<meta name="twitter:image" content="https://diduvalle.github.io/nesto/og-image.png">
+<meta name="twitter:image" content="https://nesto.cr0x.org/og-image.png">
 <style>
 :root{
   /* Família "greige" — Pedra (default). Neutros quentes; acento aplicado por JS (applyPalette). */
@@ -1476,7 +1476,7 @@ function acertoCatIds(){
 function acertoLedger(){
   const base=(state.acerto&&state.acerto.length?state.acerto:EMBED_ACERTO).map(r=>({ym:r.ym,deve:+r.deve||0,pago:+r.pago||0,fwd:false}));
   const lastYm=base.length?base[base.length-1].ym:'0000-00';
-  // meses posteriores ao histórico: quota dela = metade das despesas das contas partilhadas lançadas na app
+  // meses posteriores ao histórico: quota da outra pessoa = metade das despesas das contas partilhadas lançadas na app
   const acIds=acertoCatIds(); const fwd={};
   state.movimentos.filter(x=>x.tipo==='despesa'&&acIds.has(x.categoriaId)&&x.data.slice(0,7)>lastYm)
     .forEach(x=>{const ym=x.data.slice(0,7);fwd[ym]=(fwd[ym]||0)+x.valor/2;});
