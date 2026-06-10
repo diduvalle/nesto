@@ -181,6 +181,11 @@ button.cicon:hover{transform:scale(1.08)}
 .bk-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 2px;border-bottom:1px solid var(--line)}
 .bk-row:last-child{border-bottom:0}
 .empty-tile{width:54px;height:54px;border-radius:15px;background:linear-gradient(135deg,var(--accd),var(--card2));display:grid;place-items:center;color:var(--txt);margin:0 auto 12px}
+.pin-wrap{position:relative;display:block}
+.pin-wrap input{width:100%;padding-right:42px}
+.eye-btn{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:32px;height:32px;border:0;background:none;color:var(--mut);cursor:pointer;display:grid;place-items:center;border-radius:9px;padding:0;transition:color .14s}
+.eye-btn:hover{color:var(--acc)}
+.eye-btn svg{width:17px;height:17px}
 .made-by{display:inline-flex;align-items:center;gap:6px;color:var(--mut);font-size:11px;text-decoration:none;transition:color .15s}
 .made-by:hover{color:var(--acc)}
 .made-by svg{width:13px;height:13px;flex:none}
@@ -675,6 +680,8 @@ const I={
   trend:'<path d="M3 17l6-6 4 4 8-8M15 7h6v6"/>',
   finger:'<path d="M12 11v3a8 8 0 01-1 4M8 14a4 4 0 014-4 4 4 0 014 4v1M6 12a6 6 0 0112 0v2a10 10 0 01-1 4M15 17a14 14 0 01-1 4M9.5 7.5a6 6 0 015 0"/>',
   linkedin:'<path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-4 0v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/>',
+  eye:'<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>',
+  eyeoff:'<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>',
   cash:'<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 9v6M18 9v6"/>',
   logout:'<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/>',
   scan:'<path d="M4 7V5a1 1 0 011-1h2M17 4h2a1 1 0 011 1v2M20 17v2a1 1 0 01-1 1h-2M7 20H5a1 1 0 01-1-1v-2M4 12h16"/>',
@@ -1800,7 +1807,7 @@ function obStepFields(){
         <input type="file" id="obLogoIn" accept="image/*" style="display:none"></div>`;
   if(obStep===1) return `
       <div class="ob-field"><label>Código de acesso</label>
-        <input id="obCode" inputmode="numeric" maxlength="12" placeholder="PIN — mínimo 4 dígitos" value="${esc(_obCode)}">
+        <span class="pin-wrap"><input id="obCode" type="password" autocomplete="new-password" inputmode="numeric" maxlength="12" placeholder="PIN — mínimo 4 dígitos" value="${esc(_obCode)}"><button type="button" class="eye-btn" data-eyetoggle="obCode" aria-label="Mostrar/ocultar PIN">${svg(I.eye)}</button></span>
         <div id="obCodeMsg" style="display:none;color:#f87171;font-size:12px;margin-top:6px"></div>
         <p class="dsub" style="margin-top:6px">Pedido sempre que abres a app, para proteger os teus dados.</p></div>
       <div class="ob-field"><label>Biometria <span class="ob-opt">opcional</span></label>
@@ -2217,7 +2224,7 @@ function vDefs(m){
         <div class="setf">${lbl('Tema','Auto: claro de dia, escuro à noite (07h–19h).')}<div class="seg"><button data-theme="light" class="${state.settings.tema==='light'?'on-out':''}">Claro</button><button data-theme="dark" class="${state.settings.tema==='dark'?'on-out':''}">Escuro</button><button data-theme="auto" class="${state.settings.tema==='auto'?'on-out':''}">Auto</button></div></div>
         <div class="setf">${lbl('Moeda')}<div class="setrow"><input id="moedaIn" value="${esc(moeda())}" style="max-width:90px"><button class="btn sm" id="saveMoeda">Guardar</button></div></div>
         <div class="setf">${lbl('Logótipo da app','Aparece no topo da app. O ecrã de bloqueio mantém sempre o ninho. Quando defines um logótipo teu, o ninho original passa para o rodapé. Guardado e sincronizado.')}<div class="setrow"><div class="logoprev">${state.settings.logo?`<img src="${state.settings.logo}" alt="logo">`:svg(I.nest)}</div><button class="btn sm" id="logoBtn">${svg(I.upload)}Carregar</button>${state.settings.logo?`<button class="btn sm danger" id="logoRem">Remover</button>`:''}<input type="file" id="logoIn" accept="image/*" style="display:none"></div></div>
-        <div class="setf">${lbl('Código de acesso','Pedido sempre que abres a app. Mínimo 4 dígitos (obrigatório). É um bloqueio simples — não é segurança forte.')}<div class="setrow"><input id="codigoIn" inputmode="numeric" value="${esc(state.settings.codigo||'')}" style="max-width:150px"><button class="btn sm" id="saveCodigo">Guardar</button></div></div>
+        <div class="setf">${lbl('Código de acesso','Pedido sempre que abres a app. Mínimo 4 dígitos (obrigatório). É um bloqueio simples — não é segurança forte.')}<div class="setrow"><span class="pin-wrap" style="max-width:150px"><input id="codigoIn" type="password" autocomplete="new-password" inputmode="numeric" value="${esc(state.settings.codigo||'')}"><button type="button" class="eye-btn" data-eyetoggle="codigoIn" aria-label="Mostrar/ocultar PIN">${svg(I.eye)}</button></span><button class="btn sm" id="saveCodigo">Guardar</button></div></div>
         <div class="setf">${lbl('Biometria','Desbloqueias com a digital/rosto; o código fica como alternativa. Ativa-se em cada dispositivo. Precisa de abrir pelo link https.')}${bioSupported()?(bioCfg()?`<div class="setrow"><span class="pill" style="background:var(--acc-16);color:var(--acc)">● Ativa</span><button class="btn sm" id="bioRem">Remover</button></div>`:`<button class="btn sm" id="bioReg">${svg(I.finger)}Ativar neste dispositivo</button>`):`<span class="dsub" style="margin:0">Indisponível (precisa de https + biometria no dispositivo).</span>`}</div>
         <div class="setf wide">${lbl('Lembretes de débitos','Ao abrir a app, lembra-te dos débitos diretos dos próximos dias (ex.: amanhã sai a Endesa ~42 €), com base no dia que a app aprendeu de cada fatura.')}<div class="setrow"><button class="btn sm ${state.settings.notif?'primary':''}" id="notifToggle">${svg(I.bell)}${state.settings.notif?'Notificações ativas':'Ativar notificações'}</button></div></div>
       </div>
@@ -2467,6 +2474,7 @@ document.addEventListener('click',e=>{
   if(t.id==='notifToggle'){notifToggle();return;}
   if(t.id==='bioReg'){bioRegister();return;}
   if(t.id==='bioRem'){bioRemove();return;}
+  if(d.eyetoggle){const i=document.getElementById(d.eyetoggle);if(i){i.type=i.type==='password'?'text':'password';t.innerHTML=svg(i.type==='password'?I.eye:I.eyeoff);}return;}
   if(d.prov){_cloudProv=(_cloudProv===d.prov?null:d.prov);const oc=document.getElementById('obCloud');if(oc)oc.innerHTML=obCloudHtml();else render();return;}
   if(t.id==='dbxConnect'){dbxStartAuth();return;}
   if(t.id==='dbxFinish'){dbxFinishAuth();return;}
