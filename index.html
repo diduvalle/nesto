@@ -183,6 +183,12 @@ button.cicon:hover{transform:scale(1.08)}
 .bk-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 2px;border-bottom:1px solid var(--line)}
 .bk-row:last-child{border-bottom:0}
 .empty-tile{width:54px;height:54px;border-radius:15px;background:linear-gradient(135deg,var(--accd),var(--card2));display:grid;place-items:center;color:var(--txt);margin:0 auto 12px}
+/* barra da Grelha: controlos (segmentos) numa linha, ações numa faixa deslizável no telemóvel */
+.grid-controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:9px}
+.grid-actions{display:flex;gap:8px;align-items:center;margin-bottom:12px;overflow-x:auto;scrollbar-width:none;padding:2px}
+.grid-actions::-webkit-scrollbar{display:none}
+.grid-actions .btn{flex:none;white-space:nowrap}
+@media(max-width:480px){ .grid-controls{gap:6px} .grid-controls .seg button{padding:7px 10px;font-size:12.5px} }
 /* vista Lista da Grelha (um cartão por mês, colapsável — pensada para o telemóvel) */
 .gm{display:flex;flex-direction:column;gap:9px}
 .gm-month{background:var(--card);border-radius:var(--r);box-shadow:var(--sh-sm);overflow:hidden;position:relative}
@@ -197,7 +203,8 @@ button.cicon:hover{transform:scale(1.08)}
 .gm-body{border-top:1px solid var(--line);padding:5px 7px 8px}
 .gm-cat{display:flex;align-items:center;gap:9px;padding:9px;border-radius:10px;cursor:pointer;transition:background .12s}
 .gm-cat:hover{background:var(--acc-12)}
-.gm-cat .dot{flex:none}
+.gm-cat .cicon{flex:none}
+.gm-cat.sub .cicon{opacity:.85}
 .gm-cnm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13.5px}
 .gm-cv{font-weight:600;font-variant-numeric:tabular-nums;font-size:13.5px}
 .gm-cat.z .gm-cv,.gm-cat.z .gm-cnm{opacity:.45}
@@ -1390,8 +1397,8 @@ function vGrelha(m){
         let bc='';
         if(gridTipo==='despesa'&&v>0){const lim=+state.orcamentos[c.id]||0;if(lim>0)bc=v>lim?' over':(v>lim*0.8?' warn':'');}
         const pend=v&&cellHasPend(c.id,i,true);
-        let h=`<div class="gm-cat${v?'':' z'}${bc}" data-cell="${c.id}|${i}"><span class="dot" style="background:${c.cor}"></span><span class="gm-cnm">${esc(c.nome)}</span>${kids.length?`<button class="gm-tog" data-toggle="${c.id}" title="${exp?'Fechar':'Abrir'} sub-categorias">${exp?'▾':'▸'}&nbsp;${kids.length}</button>`:''}<span class="gm-cv">${v?fmtn(v):'·'}${pend?' ⏳':''}</span></div>`;
-        if(exp)kids.forEach(k=>{const kv=directSum(k.id,i);h+=`<div class="gm-cat sub${kv?'':' z'}" data-cell="${k.id}|${i}"><span class="dot" style="background:${k.cor}"></span><span class="gm-cnm">${esc(k.nome)}</span><span class="gm-cv">${kv?fmtn(kv):'·'}</span></div>`;});
+        let h=`<div class="gm-cat${v?'':' z'}${bc}" data-cell="${c.id}|${i}">${catIconHtml(c,24)}<span class="gm-cnm">${esc(c.nome)}</span>${kids.length?`<button class="gm-tog" data-toggle="${c.id}" title="${exp?'Fechar':'Abrir'} sub-categorias">${exp?'▾':'▸'}&nbsp;${kids.length}</button>`:''}<span class="gm-cv">${v?fmtn(v):'·'}${pend?' ⏳':''}</span></div>`;
+        if(exp)kids.forEach(k=>{const kv=directSum(k.id,i);h+=`<div class="gm-cat sub${kv?'':' z'}" data-cell="${k.id}|${i}">${catIconHtml(k,18)}<span class="gm-cnm">${esc(k.nome)}</span><span class="gm-cv">${kv?fmtn(kv):'·'}</span></div>`;});
         return h;
       }).join('')+'</div>';
     }
@@ -1417,20 +1424,22 @@ function vGrelha(m){
     <button class="btn primary" id="qAdd">${svg(I.plus)}Adicionar</button>
   </div>
 
-  <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+  <div class="grid-controls">
     <div class="seg">
       <button class="${gridTipo==='despesa'?'on-out':''}" data-gt="despesa">Despesas</button>
       <button class="${gridTipo==='receita'?'on-in':''}" data-gt="receita">Receitas</button>
     </div>
+    <div class="spacer"></div>
     <div class="seg" title="Como mostrar a grelha">
       <button class="${view==='lista'?'on':''}" data-gview="lista">Lista</button>
       <button class="${view==='tabela'?'on':''}" data-gview="tabela">Tabela</button>
     </div>
-    <div class="spacer"></div>
-    ${gridTipo==='despesa'?`<button class="btn sm" id="genfix">${svg(I.repeat)}Lançar fixas em ${MESES[miv]}</button>`:''}
-    ${gridTipo==='despesa'?`<button class="btn sm" id="impFatura">${svg(I.scan)}Importar fatura (PDF)</button><input type="file" id="pdfIn" accept="application/pdf,.pdf" multiple style="display:none">`:''}
-    ${gridTipo==='despesa'?`<button class="btn sm" id="impFoto">${svg(I.camera)}Foto da fatura</button><input type="file" id="fotoIn" accept="image/*" capture="environment" style="display:none">`:''}
+  </div>
+  <div class="grid-actions">
     ${gridTipo==='despesa'&&state.inbox&&state.inbox.length?`<button class="btn sm" id="inboxBtn" style="border-color:var(--warn);color:var(--warn)">${svg(I.inbox)}Caixa de entrada (${state.inbox.length})</button>`:''}
+    ${gridTipo==='despesa'?`<button class="btn sm" id="genfix">${svg(I.repeat)}Lançar fixas · ${MESES[miv].slice(0,3)}</button>`:''}
+    ${gridTipo==='despesa'?`<button class="btn sm" id="impFatura">${svg(I.scan)}Fatura PDF</button><input type="file" id="pdfIn" accept="application/pdf,.pdf" multiple style="display:none">`:''}
+    ${gridTipo==='despesa'?`<button class="btn sm" id="impFoto">${svg(I.camera)}Foto da fatura</button><input type="file" id="fotoIn" accept="image/*" capture="environment" style="display:none">`:''}
     ${gridTipo==='receita'?`<button class="btn sm" id="impRecibo">${svg(I.scan)}Importar recibo (PDF)</button><input type="file" id="reciboIn" accept="application/pdf,.pdf" style="display:none">`:''}
     <button class="btn sm" data-newcat="${gridTipo}">${svg(I.plus)}Nova categoria</button>
   </div>
@@ -1451,7 +1460,7 @@ function vGrelha(m){
   ${view==='lista'?gmHtml():`<div class="gridwrap">
     <table class="grid">
       <thead><tr><th data-droptop="1" title="Arrasta uma categoria para aqui para a tirar do grupo (passar a coluna principal)" style="text-align:left;left:0;position:sticky;z-index:3">Mês</th>
-        ${cols.map(col=>{const c=col.c;const canTog=col.top&&col.kids;const tog=canTog?`<span class="exptog">${col.exp?'▾':'▸'}</span>`:(col.top?'':'<span style="opacity:.4">└</span>');return `<th title="${canTog?(col.exp?'Fechar':'Abrir')+' — '+c.nome:c.nome} (arrasta p/ agrupar · 2 cliques p/ renomear)" draggable="true" data-cat="${c.id}" class="${col.top?'':'subcol'}${canTog?' thtog':''}" ${canTog?`data-toggle="${c.id}"`:''}><span style="display:inline-flex;align-items:center;gap:6px">${tog}<span style="width:8px;height:8px;border-radius:2px;background:${c.cor};display:inline-block"></span>${c.nome}<button class="thedit" data-rencat="${c.id}" title="Renomear">${svg(I.edit)}</button></span></th>`;}).join('')}
+        ${cols.map(col=>{const c=col.c;const canTog=col.top&&col.kids;const tog=canTog?`<span class="exptog">${col.exp?'▾':'▸'}</span>`:(col.top?'':'<span style="opacity:.4">└</span>');return `<th title="${canTog?(col.exp?'Fechar':'Abrir')+' — '+c.nome:c.nome} (arrasta p/ agrupar · 2 cliques p/ renomear)" draggable="true" data-cat="${c.id}" class="${col.top?'':'subcol'}${canTog?' thtog':''}" ${canTog?`data-toggle="${c.id}"`:''}><span style="display:inline-flex;align-items:center;gap:6px">${tog}${catIconHtml(c,17)}${c.nome}<button class="thedit" data-rencat="${c.id}" title="Renomear">${svg(I.edit)}</button></span></th>`;}).join('')}
         <th class="addcol-th" data-newcat="${gridTipo}" title="Adicionar categoria">＋</th>
         <th class="tot">Total</th></tr></thead>
       <tbody>
