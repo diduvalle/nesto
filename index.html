@@ -194,11 +194,12 @@ button.cicon:hover{transform:scale(1.08)}
 .gm-month{background:var(--card);border-radius:var(--r);box-shadow:var(--sh-sm);overflow:hidden;position:relative}
 .gm-month.now{box-shadow:inset 3px 0 0 var(--acc),var(--sh-sm)}
 .gm-head{display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;padding:13px 15px;cursor:pointer;font-size:14px;color:var(--txt)}
-.gm-nm{font-weight:800}
+.gm-nm{font-weight:800;min-width:92px;text-align:left;flex:none}
 .gm-month.now .gm-nm{color:var(--acc)}
-.gm-lock{font-size:11px;opacity:.7}
+.gm-lock{font-size:11px;opacity:.7;width:16px;flex:none;text-align:left}
 .gm-tot{margin-left:auto;font-weight:700;font-variant-numeric:tabular-nums}
 .gm-tot.neg{color:var(--out)} .gm-tot.pos{color:var(--in)}
+.gm-tot.mut{color:var(--mut);opacity:.45;font-weight:500}
 .gm-chev{color:var(--mut);font-size:11px;width:12px;flex:none}
 .gm-body{border-top:1px solid var(--line);padding:5px 7px 8px}
 .gm-cat{display:flex;align-items:center;gap:9px;padding:9px;border-radius:10px;cursor:pointer;transition:background .12s}
@@ -1397,12 +1398,12 @@ function vGrelha(m){
         let bc='';
         if(gridTipo==='despesa'&&v>0){const lim=+state.orcamentos[c.id]||0;if(lim>0)bc=v>lim?' over':(v>lim*0.8?' warn':'');}
         const pend=v&&cellHasPend(c.id,i,true);
-        let h=`<div class="gm-cat${v?'':' z'}${bc}" data-cell="${c.id}|${i}">${catIconHtml(c,24)}<span class="gm-cnm">${esc(c.nome)}</span>${kids.length?`<button class="gm-tog" data-toggle="${c.id}" title="${exp?'Fechar':'Abrir'} sub-categorias">${exp?'▾':'▸'}&nbsp;${kids.length}</button>`:''}<span class="gm-cv">${v?fmtn(v):'·'}${pend?' ⏳':''}</span></div>`;
-        if(exp)kids.forEach(k=>{const kv=directSum(k.id,i);h+=`<div class="gm-cat sub${kv?'':' z'}" data-cell="${k.id}|${i}">${catIconHtml(k,18)}<span class="gm-cnm">${esc(k.nome)}</span><span class="gm-cv">${kv?fmtn(kv):'·'}</span></div>`;});
+        let h=`<div class="gm-cat${v?'':' z'}${bc}" data-cell="${c.id}|${i}">${catIconHtml(c,24)}<span class="gm-cnm">${esc(c.nome)}</span>${kids.length?`<button class="gm-tog" data-toggle="${c.id}" title="${exp?'Fechar':'Abrir'} sub-categorias">${exp?'▾':'▸'}&nbsp;${kids.length}</button>`:''}<span class="gm-cv">${v?fmtn(v):'—'}${pend?' ⏳':''}</span></div>`;
+        if(exp)kids.forEach(k=>{const kv=directSum(k.id,i);h+=`<div class="gm-cat sub${kv?'':' z'}" data-cell="${k.id}|${i}">${catIconHtml(k,18)}<span class="gm-cnm">${esc(k.nome)}</span><span class="gm-cv">${kv?fmtn(kv):'—'}</span></div>`;});
         return h;
       }).join('')+'</div>';
     }
-    return `<div class="gm-month${i===mi?' now':''}"><button class="gm-head" data-gmmonth="${i}"><span class="gm-chev">${open?'▾':'▸'}</span><span class="gm-nm">${nm}</span>${froz?'<span class="gm-lock" title="Mês congelado (histórico) — leitura">🔒</span>':''}<span class="gm-tot${tot?(gridTipo==='despesa'?' neg':' pos'):''}">${tot?fmtn(tot):'·'}</span></button>${body}</div>`;
+    return `<div class="gm-month${i===mi?' now':''}"><button class="gm-head" data-gmmonth="${i}"><span class="gm-chev">${open?'▾':'▸'}</span><span class="gm-nm">${nm}</span><span class="gm-lock">${froz?'<span title="Mês congelado (histórico) — leitura">🔒</span>':''}</span><span class="gm-tot${tot?(gridTipo==='despesa'?' neg':' pos'):' mut'}">${tot?fmtn(tot):'—'}</span></button>${body}</div>`;
   }).join('')}<div class="gm-foot"><span>Total ${gridTipo==='despesa'?'despesas':'receitas'} ${ano}</span><b>${fmtn(grand)}</b></div></div>`;
 
   m.innerHTML=`
