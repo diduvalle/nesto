@@ -61,6 +61,8 @@ body{font-family:'Inter','Segoe UI',system-ui,-apple-system,Roboto,sans-serif;ba
 .logo{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#6b635a,#37342f);display:grid;place-items:center;color:#f6f4f1;flex:none;overflow:hidden;box-shadow:var(--sh-sm)}
 .logo svg{width:20px;height:20px}
 .logo img{width:100%;height:100%;object-fit:cover}
+.logo.ciz{background:linear-gradient(135deg,#c24d7d,#6257cf)}
+.ciz-c{font-family:'Brush Script MT','Segoe Script',cursive;font-weight:800;font-size:22px;color:#fdfbfc;line-height:1;transform:translateY(-1px)}
 .sidenav{display:flex;flex-direction:column;gap:3px}
 .sidenav button{display:flex;align-items:center;gap:12px;padding:10px 12px;border:0;background:none;color:var(--mut);border-radius:11px;font-size:14px;font-weight:600;cursor:pointer;width:100%;text-align:left;position:relative;transition:background .15s,color .15s}
 .sidenav button:hover{background:var(--card);color:var(--txt)}
@@ -650,7 +652,7 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
 <div id="splash"><svg viewBox="0 0 24 24" aria-hidden="true"><circle class="coin coin1" cx="9.5" cy="11.3" r="1.15"/><circle class="coin coin2" cx="12" cy="12" r="1.3"/><circle class="coin coin3" cx="14.5" cy="11.3" r="1.15"/><path class="house" pathLength="1" d="M3 10.5c0 5 4 8 9 8s9-3 9-8M6.2 11.2c0 3.4 2.6 5.6 5.8 5.6s5.8-2.2 5.8-5.6M9.3 11.8c0 1.9 1.2 3.2 2.7 3.2s2.7-1.3 2.7-3.2"/></svg></div>
 <div class="app">
   <aside class="sidebar">
-    <div class="side-brand"><div class="logo" id="brandLogo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5c0 5 4 8 9 8s9-3 9-8"/><path d="M6.2 11.2c0 3.4 2.6 5.6 5.8 5.6s5.8-2.2 5.8-5.6"/><path d="M9.3 11.8c0 1.9 1.2 3.2 2.7 3.2s2.7-1.3 2.7-3.2"/></svg></div><span>Nesto</span></div>
+    <div class="side-brand"><div class="logo" id="brandLogo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5c0 5 4 8 9 8s9-3 9-8"/><path d="M6.2 11.2c0 3.4 2.6 5.6 5.8 5.6s5.8-2.2 5.8-5.6"/><path d="M9.3 11.8c0 1.9 1.2 3.2 2.7 3.2s2.7-1.3 2.7-3.2"/></svg></div><span id="brandName">Nesto</span></div>
     <nav class="sidenav" id="sidenav"></nav>
     <div class="side-bottom">
       <div class="side-saldo" id="sideSaldo" data-saldoreal title="Saldo real — clica para ajustar"></div>
@@ -777,14 +779,18 @@ const PALETAS={
     light:['#f1eee9','#e8e4dd','#fbf9f6','#f0ede7','#ded8cf','#cabfb2','#1f1f20','#857d74','#75619a','#5d4b80','#5f8868','#bd6b58','#a07c3f','#5d7d92']},
   rosa:{nome:'Rosa',
     dark:['#1f1f20','#262524','#2c2a28','#37342f','#423e39','#57524b','#f6f4f1','#a59f99','#cda3b0','#b88897','#93b196','#cd8f7e','#d3b277','#93a9b8'],
-    light:['#f1eee9','#e8e4dd','#fbf9f6','#f0ede7','#ded8cf','#cabfb2','#1f1f20','#857d74','#a05c70','#824a5b','#5f8868','#bd6b58','#a07c3f','#5d7d92']}
+    light:['#f1eee9','#e8e4dd','#fbf9f6','#f0ede7','#ded8cf','#cabfb2','#1f1f20','#857d74','#a05c70','#824a5b','#5f8868','#bd6b58','#a07c3f','#5d7d92']},
+  /* byCiz — skin da empresa da Catarina: rosa/magenta (acento) + roxo (info), base creme. Inspirado no grafíti byCiz. */
+  byciz:{nome:'byCiz',
+    dark:['#211a1e','#281f24','#2e242a','#3a2d34','#46383f','#5b4a53','#f6f1f4','#b09aa4','#d06e96','#b85780','#93b196','#d68a96','#d3b277','#8a80e0'],
+    light:['#f5eff2','#ece3e8','#fdfbfc','#f5edf1','#e7d9e0','#d2bbc7','#3a2331','#9a7e8b','#c24d7d','#a23c66','#5f8868','#c4566c','#c0883f','#6257cf']}
 };
 function hexRgb(h){h=(h||'').replace('#','');return parseInt(h.slice(0,2),16)+','+parseInt(h.slice(2,4),16)+','+parseInt(h.slice(4,6),16);}
-function paletaAtual(){return (state&&state.settings&&state.settings.palette&&PALETAS[state.settings.palette])?state.settings.palette:'pedra';}
+function paletaAtual(){if(state&&state.settings&&state.settings.tema==='byciz')return 'byciz';return (state&&state.settings&&state.settings.palette&&PALETAS[state.settings.palette])?state.settings.palette:'pedra';}
 /* swatch de paleta (chip do acento + nome) — usado nas Definições e no onboarding */
 function paletteSwatch(k,on,dataAttr){const p=PALETAS[k],dk=p.dark;return `<button class="palsw ${on?'on':''}" ${dataAttr}="${k}" title="${p.nome}"><span class="palsw-chip" style="background:linear-gradient(135deg,${dk[8]},${dk[9]})"></span><span class="palsw-nm">${p.nome}</span></button>`;}
 /* tema efetivo: 'auto' resolve por hora (07–19h claro, resto escuro) */
-function temaEfetivo(){const t=state.settings&&state.settings.tema;if(t==='dark')return 'dark';if(t==='light')return 'light';const h=new Date().getHours();return (h>=7&&h<19)?'light':'dark';}
+function temaEfetivo(){const t=state.settings&&state.settings.tema;if(t==='dark')return 'dark';if(t==='light'||t==='byciz')return 'light';const h=new Date().getHours();return (h>=7&&h<19)?'light':'dark';}
 function applyPalette(){
   const key=paletaAtual(); const tema=temaEfetivo();
   const arr=PALETAS[key][tema]; const root=document.documentElement;
@@ -1085,9 +1091,13 @@ function valeteSpark(F){
 function render(){
   document.documentElement.setAttribute('data-theme',temaEfetivo());
   applyPalette();
-  const logoInner = state.settings.logo ? `<img src="${state.settings.logo}" alt="logo">` : svg(I.nest);
-  ['brandLogo','brandLogoM'].forEach(id=>{const el=document.getElementById(id);if(el){el.innerHTML=logoInner;el.style.background=state.settings.logo?'none':'';}});
-  const _sf=document.getElementById('sideFoot'); if(_sf)_sf.innerHTML=`<div style="display:flex;align-items:center;gap:7px">${state.settings.logo?`<span class="foot-nest">${svg(I.nest)}</span>`:''}Nesto · finanças privadas</div><a class="made-by" href="https://www.linkedin.com/in/ldvale/" target="_blank" rel="noopener noreferrer" title="LinkedIn — Diogo du Valle">${svg(I.linkedin)}<span>Created by Diogo du Valle</span></a>`;
+  const isCiz = state.settings.tema==='byciz';
+  const appName = isCiz ? 'byCiz' : 'Nesto';
+  const cizMark = `<span class="ciz-c">C</span>`;
+  const logoInner = state.settings.logo ? `<img src="${state.settings.logo}" alt="logo">` : (isCiz ? cizMark : svg(I.nest));
+  ['brandLogo','brandLogoM'].forEach(id=>{const el=document.getElementById(id);if(el){el.innerHTML=logoInner;el.classList.toggle('ciz',isCiz&&!state.settings.logo);el.style.background=state.settings.logo?'none':'';}});
+  const _brn=document.getElementById('brandName'); if(_brn)_brn.innerHTML=isCiz?`<span style="color:var(--info)">by</span><span style="color:var(--acc)">Ciz</span>`:'Nesto';
+  const _sf=document.getElementById('sideFoot'); if(_sf)_sf.innerHTML=`<div style="display:flex;align-items:center;gap:7px">${state.settings.logo?`<span class="foot-nest">${svg(I.nest)}</span>`:''}${appName} · finanças privadas</div><a class="made-by" href="https://www.linkedin.com/in/ldvale/" target="_blank" rel="noopener noreferrer" title="LinkedIn — Diogo du Valle">${svg(I.linkedin)}<span>Created by Diogo du Valle</span></a>`;
   const _ss=document.getElementById('sideSaldo'); if(_ss){ const sv=valeteAtual(); _ss.innerHTML=`<div class="ss-l">Saldo real</div><div class="ss-v ${sv!=null&&sv<0?'neg':''}">${sv!=null?fmt(sv):'definir →'}</div>`; }
   const TABS=[['resumo','Resumo',I.home],['grelha','Grelha',I.grid],['acerto','Dívida',I.scale],['poup','Poupanças',I.wallet],['previsao','Previsão',I.trend],['defs','Definições',I.gear]];
   document.getElementById('sidenav').innerHTML=TABS
@@ -1903,7 +1913,7 @@ function obStepFields(){
       <div class="ob-field"><label>Como te chamas?</label>
         <input id="obName" type="text" maxlength="40" placeholder="o teu nome" value="${esc(_obName)}"></div>
       <div class="ob-field"><label>Aspeto</label>
-        <div class="seg"><button data-theme="light" class="${state.settings.tema!=='dark'?'on-out':''}">Claro</button><button data-theme="dark" class="${state.settings.tema==='dark'?'on-out':''}">Escuro</button></div></div>
+        <div class="seg"><button data-theme="light" class="${state.settings.tema==='light'?'on-out':''}">Claro</button><button data-theme="dark" class="${state.settings.tema==='dark'?'on-out':''}">Escuro</button><button data-theme="byciz" class="${state.settings.tema==='byciz'?'on-out':''}">byCiz</button></div></div>
       <div class="ob-field"><label>Logótipo <span class="ob-opt">opcional</span></label>
         <div class="ob-logo-row"><div class="logoprev" id="obLogoPrev">${state.settings.logo?`<img src="${state.settings.logo}" alt="logo">`:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${I.nest}</svg>`}</div><button class="btn" id="obLogoBtn">${svg(I.upload)} Carregar imagem</button></div>
         <input type="file" id="obLogoIn" accept="image/*" style="display:none"></div>`;
@@ -2361,7 +2371,7 @@ function vDefs(m){
     <div class="card span2">${dh(I.gear,'Perfil & aparência')}
       <div class="setgrid">
         <div class="setf wide">${lbl('O teu nome')}<div class="setrow"><input id="pn0" value="${esc(a.nome)}" placeholder="Eu" style="flex:1;min-width:160px"><button class="btn primary sm" id="savePeople">${svg(I.check)}Guardar</button></div></div>
-        <div class="setf">${lbl('Tema','Auto: claro de dia, escuro à noite (07h–19h).')}<div class="seg"><button data-theme="light" class="${state.settings.tema==='light'?'on-out':''}">Claro</button><button data-theme="dark" class="${state.settings.tema==='dark'?'on-out':''}">Escuro</button><button data-theme="auto" class="${state.settings.tema==='auto'?'on-out':''}">Auto</button></div></div>
+        <div class="setf">${lbl('Tema','Auto: claro de dia, escuro à noite (07h–19h). byCiz: skin rosa/roxo.')}<div class="seg"><button data-theme="light" class="${state.settings.tema==='light'?'on-out':''}">Claro</button><button data-theme="dark" class="${state.settings.tema==='dark'?'on-out':''}">Escuro</button><button data-theme="auto" class="${state.settings.tema==='auto'?'on-out':''}">Auto</button><button data-theme="byciz" class="${state.settings.tema==='byciz'?'on-out':''}">byCiz</button></div></div>
         <div class="setf">${lbl('Moeda')}<div class="setrow"><input id="moedaIn" value="${esc(moeda())}" style="max-width:90px"><button class="btn sm" id="saveMoeda">Guardar</button></div></div>
         <div class="setf">${lbl('Logótipo da app','Aparece no topo da app. O ecrã de bloqueio mantém sempre o ninho. Quando defines um logótipo teu, o ninho original passa para o rodapé. Guardado e sincronizado.')}<div class="setrow"><div class="logoprev">${state.settings.logo?`<img src="${state.settings.logo}" alt="logo">`:svg(I.nest)}</div><button class="btn sm" id="logoBtn">${svg(I.upload)}Carregar</button>${state.settings.logo?`<button class="btn sm danger" id="logoRem">Remover</button>`:''}<input type="file" id="logoIn" accept="image/*" style="display:none"></div></div>
         <div class="setf">${lbl('Código de acesso','Pedido sempre que abres a app. Mínimo 4 dígitos (obrigatório). É um bloqueio simples — não é segurança forte.')}<div class="setrow"><span class="pin-wrap" style="max-width:150px"><input id="codigoIn" type="password" autocomplete="new-password" inputmode="numeric" value="${esc(state.settings.codigo||'')}"><button type="button" class="eye-btn" data-eyetoggle="codigoIn" aria-label="Mostrar/ocultar PIN">${svg(I.eye)}</button></span><button class="btn sm" id="saveCodigo">Guardar</button></div></div>
