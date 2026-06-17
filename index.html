@@ -838,7 +838,11 @@ function load(){
   state.faturaMap = state.faturaMap || {}; // fornecedor (assinatura) -> categoria aprendida
   state.faturaTotalMap = state.faturaTotalMap || {}; // fornecedor -> rubrica do total aprendida (modelo de fatura)
   state.nifMap = state.nifMap || {};       // NIF do emitente (QR) -> categoria aprendida
-  state.inbox = state.inbox || [];         // caixa de entrada de faturas lidas por QR (por classificar)
+  state.inbox = state.inbox || [];         // caixa de entrada (QR, foto, email, CSV) por classificar
+  state.providers = state.providers || []; // fornecedores de email aprendidos (remetente -> categoria)
+  state.mailSeen = state.mailSeen || [];   // ids de emails já processados (dedup)
+  state.mailCfg = state.mailCfg || {from:''}; // config da importação de faturas do Gmail
+  if(!state.mailCfg.since) state.mailCfg.since = isoToday(); // só faturas a partir desta data (default: hoje)
   state.settings.valeteMargem = state.settings.valeteMargem ?? 0; // margem de segurança do saldo
   state.settings.diaSalario = state.settings.diaSalario ?? 23; // dia em que a receita costuma entrar
   if(state.settings.autoLockMin==null) state.settings.autoLockMin = 3; // bloqueio automático por inatividade (min); 0 = desligado
@@ -2349,6 +2353,7 @@ function vDefs(m){
   const a=P()[0]||{nome:''}, b=P()[1]||{nome:''};
   const dh=(ic,t,sub)=>`<h3 class="dh">${svg(ic)} <span>${t}</span>${sub?`<button class="info-i" data-info="${esc(String(sub).replace(/<[^>]+>/g,''))}" aria-label="Ajuda">i</button>`:''}</h3>`;
   const lbl=(t,info)=>`<label>${t}${info?` <button class="info-i" data-info="${esc(String(info).replace(/<[^>]+>/g,''))}" aria-label="Ajuda">i</button>`:''}</label>`;
+  const hlp=(t)=>t?`<button class="info-i" data-info="${esc(String(t).replace(/<[^>]+>/g,''))}" aria-label="Ajuda">i</button>`:'';
   m.innerHTML=`
   <div class="defs-wrap">
   <details class="defgroup" data-dg="pessoas" ${defGroupsOpen.has('pessoas')?'open':''}><summary>${svg(I.scale)} Pessoas & aparência</summary>
@@ -2436,6 +2441,50 @@ function vDefs(m){
         <button class="btn sm" id="impBtn">${svg(I.upload)}Importar JSON</button>
         <button class="btn sm" id="csv">${svg(I.download)}Exportar CSV</button>
         <input type="file" id="fileIn" accept=".json" style="display:none">
+      </div>
+    </div>
+
+    <div class="card span2">${dh(I.scan,'Faturas por email (Gmail)','Importa as faturas em PDF que recebes por email (luz, água, telecom, seguros…) direto para a Caixa de entrada. Acesso só de leitura e temporário — nada fica guardado num servidor.')}
+      ${gmailClientId()?'':`<div class="ob-note" style="margin-bottom:12px"><span class="nb">!</span><div>Falta o <b>Client ID do Google</b> para ligar o Gmail. Cria um (uma vez) em <b>console.cloud.google.com</b> → APIs → Ecrã de consentimento + Credenciais → <b>ID de cliente OAuth</b> (tipo <b>Aplicação Web</b>), com a origem <b>https://nesto.cr0x.org</b> autorizada, e a <b>Gmail API</b> ativada. Cola-o aqui:</div></div>`}
+      <div class="setf" style="margin-bottom:12px"><label>Client ID do Google ${gmailClientId()?'<span class="ob-opt">configurado ✓</span>':''}</label><div class="setrow"><input id="gmailCid" value="${esc((state.settings.gmailClientId)||'')}" placeholder="xxxxx.apps.googleusercontent.com" style="flex:1;min-width:200px"><button class="btn sm" id="gmailCidSave">${svg(I.check)}Guardar</button></div></div>
+      <div class="f2">
+        <div><label>Remetentes <span class="ob-opt">opcional, separados por vírgula</span></label><input id="mailFrom" value="${esc((state.mailCfg&&state.mailCfg.from)||'')}" placeholder="ex: nos.pt, endesa, inframoura"></div>
+        <div><label>A partir de</label><input id="mailSince" type="date" value="${(state.mailCfg&&state.mailCfg.since)||isoToday()}"></div>
+      </div>
+      <button class="btn primary sm" id="mailImport" style="margin-top:8px" ${gmailClientId()?'':'disabled'}>${svg(I.scan)}Importar faturas do Gmail</button>
+      ${(state.providers&&state.providers.length)?`<div style="margin-top:16px">
+        <label>Fornecedores aprendidos ${hlp('Liga Auto para o fornecedor passar a entrar direto na grelha (depois de validares os primeiros). Sem Auto, vai à Caixa de entrada. Edita etiqueta, remetente, categoria e fonte; a lupa procura o último email para validar.')}</label>
+        ${state.providers.map(p=>`<div class="catedit" style="padding:8px 0;gap:6px;flex-wrap:wrap;align-items:center">
+          <span class="dot" style="background:${cat(p.catId)?cat(p.catId).cor:'#888'}"></span>
+          <input value="${esc(p.label||'')}" data-pvlabel="${p.id}" placeholder="etiqueta" style="flex:1 1 90px;min-width:80px" title="Etiqueta">
+          <input value="${esc(p.from||'')}" data-pvfrom="${p.id}" placeholder="remetente" style="flex:1 1 110px;min-width:90px" title="Remetente (email/domínio)">
+          <select data-pvcat="${p.id}" title="Categoria">${p.catId?'':'<option value="" selected>— categoria —</option>'}${catOptions('despesa',p.catId)}</select>
+          <select data-pvsrc="${p.id}" title="Fonte"><option value="pdf" ${p.source!=='body'?'selected':''}>📎 PDF</option><option value="body" ${p.source==='body'?'selected':''}>✉ corpo</option></select>
+          <span style="color:var(--mut);font-size:11px">${p.n||0} imp.${p.last?' · '+fmt(p.last.total):''}</span>
+          <button class="iconbtn" data-pvtest="${p.id}" title="Procurar e ler o último email deste remetente (validar)">${svg(I.scan)}</button>
+          <button class="btn sm ${p.auto?'primary':''}" data-pvauto="${p.id}" title="${p.auto?'Auto-lançar ativo (clica para desligar)':'Ativar auto-lançar na grelha'}">${p.auto?'Auto ✓':'Auto'}</button>
+          <button class="iconbtn" data-pvdel="${p.id}" title="Esquecer este fornecedor">${svg(I.trash)}</button>
+        </div>`).join('')}
+      </div>`:''}
+      <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line)">
+        <label>Adicionar fornecedor à mão ${hlp('A app procura só estes remetentes. Fonte: PDF anexo ou (para notificações sem PDF) corpo do email.')}</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+          <div style="flex:1 1 150px"><label style="font-size:11px;color:var(--mut)">Remetente (email/domínio)</label><input id="pvFrom" placeholder="ex: nos.pt"></div>
+          <div style="flex:1 1 130px"><label style="font-size:11px;color:var(--mut)">Categoria</label><select id="pvCat">${catOptions('despesa')}</select></div>
+          <div><label style="font-size:11px;color:var(--mut)">Etiqueta</label><input id="pvLabel" placeholder="ex: NOS" style="max-width:110px"></div>
+          <div><label style="font-size:11px;color:var(--mut)">Fonte</label><select id="pvSource"><option value="pdf">PDF anexo</option><option value="body">Corpo do email</option></select></div>
+          <button class="btn sm" data-pvadd="1" style="height:38px">${svg(I.plus)}Adicionar</button>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+          <button class="btn sm" data-pvseed="1">${svg(I.plus)}Sugerir conhecidos</button>
+          <button class="btn sm" data-pvdetect="1" ${gmailClientId()?'':'disabled'}>${svg(I.scan)}Detetar remetentes do Gmail ${hlp('Lê os remetentes reais dos teus emails com PDF (último ano) e deixa-te ligá-los — para teres o endereço exato.')}</button>
+        </div>
+      </div>
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line)">
+        <label>Testar leitura ${hlp('Cola o texto de uma fatura/email e vê o que a app deteta (valor, data, categoria) — útil antes de confiar no automático.')}</label>
+        <textarea id="mailTestText" rows="3" style="width:100%" placeholder="cola aqui o texto da fatura/notificação…"></textarea>
+        <button class="btn sm" data-mailtest="1" style="margin-top:6px">${svg(I.scan)}Analisar</button>
+        <div id="mailTestOut" style="font-size:13px;color:var(--mut);margin-top:6px"></div>
       </div>
     </div>
 
@@ -2641,6 +2690,16 @@ document.addEventListener('click',e=>{
   if(t.id==='csv'){expCSV();return;}
   if(t.id==='impBtn'){document.getElementById('fileIn').click();return;}
   if(t.id==='csvImport'){const f=document.getElementById('csvIn');if(f)f.click();return;}
+  if(t.id==='gmailCidSave'){state.settings.gmailClientId=(val('gmailCid')||'').trim();save();render();toast(state.settings.gmailClientId?'Client ID guardado':'Client ID removido');return;}
+  if(t.id==='mailImport'){state.mailCfg=Object.assign({},state.mailCfg,{from:val('mailFrom'),since:val('mailSince')||isoToday()});save();mailImport();return;}
+  if(d.pvadd){const f=(val('pvFrom')||'').trim().toLowerCase();if(!f){toast('Indica o remetente (email/domínio)');return;}if(findProvider(f)){toast('Já existe um fornecedor com esse remetente');return;}const c=(document.getElementById('pvCat')||{}).value;const lbl=(val('pvLabel')||'').trim()||f;const src=(document.getElementById('pvSource')||{}).value||'pdf';state.providers=state.providers||[];state.providers.push({id:nid('pv'),label:lbl,from:f,catId:c,auto:false,source:src,n:0,last:null});save();render();toast('Fornecedor adicionado: '+lbl);return;}
+  if(d.pvseed){state.providers=state.providers||[];let n=0;SUGGESTED_PROVIDERS.forEach(s=>{if(findProvider(s.from))return;const c=findCatByName(s.cat);state.providers.push({id:nid('pv'),label:s.label,from:s.from,catId:c?c.id:null,auto:false,source:s.source||'pdf',n:0,last:null});n++;});save();render();toast(n?n+' fornecedor(es) adicionados — confirma a categoria/fonte e liga o Auto':'Já tinhas todos os sugeridos');return;}
+  if(d.pvdetect){mailDetectSenders();return;}
+  if(d.pvtest){mailTestProvider(d.pvtest);return;}
+  if(d.pvadddet!=null){const s=_detSenders[+d.pvadddet];if(s){state.providers=state.providers||[];if(!findProvider(s.dom)){state.providers.push({id:nid('pv'),label:s.name||s.dom,from:s.dom,catId:null,auto:false,source:'pdf',n:0,last:null});save();}render();mailSendersModal();toast('Ligado: '+(s.name||s.dom)+' — escolhe a categoria na lista');}return;}
+  if(d.mailtest){const txt=val('mailTestText');const out=document.getElementById('mailTestOut');if(!txt){if(out)out.textContent='Cola algum texto primeiro.';return;}const pf=parseFatura(txt);if(out)out.innerHTML=(pf&&pf.total!=null)?`Detetado: <b>${fmt(pf.total)}</b>${pf.dia?' · dia '+pf.dia:''}${pf.mi!=null?' · '+MESES[pf.mi].slice(0,3):''}${pf.year?'/'+pf.year:''}${pf.forn?' · '+esc(pf.forn):''} → ${pf.catId?esc(catName(pf.catId)):'(sem categoria detetada)'}`:'Não detetei um valor. Cola mais texto (incl. a linha do total/valor a pagar).';return;}
+  if(d.pvauto){const p=(state.providers||[]).find(x=>x.id===d.pvauto);if(p){p.auto=!p.auto;save();render();toast(p.auto?'Auto-lançar ligado: '+(p.label||p.from):'Auto-lançar desligado');}return;}
+  if(d.pvdel){const p=(state.providers||[]).find(x=>x.id===d.pvdel);if(p&&confirm('Esquecer o fornecedor "'+(p.label||p.from)+'"? (as faturas já lançadas mantêm-se)')){state.providers=state.providers.filter(x=>x.id!==d.pvdel);save();render();}return;}
   if(t.id==='reset'){if(cloudOn()){toast('Desliga primeiro a sincronização (senão a cloud repõe os dados)');return;}if(confirm('Apagar TODOS os dados deste dispositivo e recomeçar do zero? Esta ação não tem volta.')){localStorage.removeItem(KEY);state=null;load();tab='resumo';render();toast('Dados apagados — recomeço do zero');try{if(!state.settings.onboarded)showOnboarding();}catch(_){}}return;}
   if(d.close){closeBack();return;}
   if(t.id==='saveNewCat'){saveNewCat();return;}
@@ -2673,6 +2732,13 @@ document.addEventListener('change',e=>{
   if(e.target.id==='obLogoIn'&&e.target.files[0]){processLogo(e.target.files[0],()=>{const pv=document.getElementById('obLogoPrev');if(pv)pv.innerHTML=`<img src="${state.settings.logo}" alt="logo">`;});e.target.value='';return;}
   if(e.target.id==='fileIn'&&e.target.files[0]){impJSON(e.target.files[0]);}
   if(e.target.id==='csvIn'&&e.target.files[0]){const cat=(document.getElementById('csvCat')||{}).value||null;importExtratoCSV(e.target.files[0],cat);e.target.value='';return;}
+  if(e.target.id==='mailFrom'){state.mailCfg=state.mailCfg||{};state.mailCfg.from=e.target.value;save();return;}
+  if(e.target.id==='mailSince'){state.mailCfg=state.mailCfg||{};state.mailCfg.since=e.target.value||isoToday();save();return;}
+  {const ds=e.target.dataset||{};
+   if(ds.pvcat!=null){const p=(state.providers||[]).find(x=>x.id===ds.pvcat);if(p){p.catId=e.target.value||null;save();render();}return;}
+   if(ds.pvsrc!=null){const p=(state.providers||[]).find(x=>x.id===ds.pvsrc);if(p){p.source=e.target.value;save();render();}return;}
+   if(ds.pvfrom!=null){const p=(state.providers||[]).find(x=>x.id===ds.pvfrom);if(p){p.from=(e.target.value||'').trim().toLowerCase();save();}return;}
+   if(ds.pvlabel!=null){const p=(state.providers||[]).find(x=>x.id===ds.pvlabel);if(p){p.label=e.target.value;save();}return;}}
   if(e.target.id==='obFileIn'&&e.target.files[0]){impJSON(e.target.files[0]);return;}
   if(e.target.id==='pdfIn'&&e.target.files[0]){const fs=[...e.target.files];e.target.value='';if(fs.length===1)processFatura(fs[0]);else processFaturasBatch(fs);}
   if(e.target.id==='fmPdfIn'&&e.target.files[0]){const f=e.target.files[0];e.target.value='';processFatura(f);}
@@ -2995,6 +3061,10 @@ const DBX_FILE='/Nesto-dados.json';
 /* App key oficial do Nesto — preencher ao publicar (com URL fixo). Quando definida, o utilizador
    não precisa de criar a sua app na Dropbox: clica "Ligar Dropbox", autoriza e cola o código. */
 const DBX_APP_KEY='4iafpslzgcmjikn';
+/* Client ID do Google (Gmail) — opcional, configurável nas Definições (state.settings.gmailClientId).
+   Deixar vazio aqui; o utilizador cola o seu na app. Origem JS autorizada tem de incluir o URL do Nesto. */
+const GMAIL_CLIENT_ID='';
+function gmailClientId(){return ((state&&state.settings&&state.settings.gmailClientId)||'').trim()||GMAIL_CLIENT_ID;}
 let _dbxTok=null,_dbxTokExp=0,_syncTimer=null,_syncing=false,_lastSync=null,_syncErr=null;
 function dbxCfg(){try{return JSON.parse(localStorage.getItem('nesto-dropbox')||'null');}catch(e){return null;}}
 function dbxSet(c){localStorage.setItem('nesto-dropbox',JSON.stringify(c));}
@@ -3462,6 +3532,167 @@ async function importExtratoCSV(file,defaultCatId){
   save(); render();
   toast(`CSV: ${added} movimento(s) na Caixa de entrada`);
   if(added)openInbox();
+}
+/* ===== Faturas por email (Gmail) — client-side, token temporário, sem servidor ===== */
+const SUGGESTED_PROVIDERS=[
+  {from:'nos.pt', label:'NOS', cat:'Telecom', source:'pdf'},
+  {from:'endesa', label:'Endesa', cat:'Luz', source:'pdf'},
+  {from:'edp', label:'EDP', cat:'Luz', source:'pdf'},
+  {from:'galp', label:'Galp', cat:'Gás', source:'pdf'},
+  {from:'meo', label:'MEO', cat:'Telecom', source:'pdf'},
+  {from:'vodafone', label:'Vodafone', cat:'Telecom', source:'pdf'},
+];
+let _gisLoaded=null;
+function loadGIS(){
+  if(_gisLoaded)return _gisLoaded;
+  _gisLoaded=new Promise((res,rej)=>{
+    if(window.google&&google.accounts&&google.accounts.oauth2)return res();
+    const s=document.createElement('script'); s.src='https://accounts.google.com/gsi/client'; s.async=true;
+    s.onload=()=>res(); s.onerror=()=>rej(new Error('Google Identity não carregou')); document.head.appendChild(s);
+  });
+  return _gisLoaded;
+}
+function gmailToken(silent){
+  return new Promise(async(resolve,reject)=>{
+    const cid=gmailClientId();
+    if(!cid){ if(!silent)toast('Falta o Client ID do Google (Definições)'); return silent?resolve(null):reject(new Error('sem client id')); }
+    try{await loadGIS();}catch(e){ return silent?resolve(null):reject(e); }
+    const tc=google.accounts.oauth2.initTokenClient({
+      client_id:cid,
+      scope:'https://www.googleapis.com/auth/gmail.readonly',
+      prompt: silent?'none':'',
+      callback:(resp)=>{ if(resp&&resp.access_token)resolve(resp.access_token); else (silent?resolve(null):reject(new Error('sem token'))); },
+      error_callback:(e)=>{ silent?resolve(null):reject(e); }
+    });
+    tc.requestAccessToken();
+  });
+}
+function _b64urlToBlob(data,type){const b=atob(String(data).replace(/-/g,'+').replace(/_/g,'/'));const a=new Uint8Array(b.length);for(let i=0;i<b.length;i++)a[i]=b.charCodeAt(i);return new Blob([a],{type});}
+function _b64urlToText(data){try{const b=atob(String(data).replace(/-/g,'+').replace(/_/g,'/'));return decodeURIComponent(escape(b));}catch(e){return '';}}
+function _getEmailText(payload){
+  let plain='',html='';
+  const walk=(p)=>{ if(!p)return; const mt=(p.mimeType||'').toLowerCase();
+    if(p.body&&p.body.data){ if(mt==='text/plain')plain+=' '+_b64urlToText(p.body.data); else if(mt==='text/html')html+=' '+_b64urlToText(p.body.data); }
+    if(p.parts)p.parts.forEach(walk);
+  };
+  walk(payload);
+  let t = plain.trim() || html.replace(/<style[\s\S]*?<\/style>/gi,' ').replace(/<[^>]+>/g,' ');
+  return t.replace(/&nbsp;/gi,' ').replace(/&amp;/gi,'&').replace(/&euro;/gi,'€').replace(/&#8364;/g,'€').replace(/\s+/g,' ').trim();
+}
+function _findPdfPart(payload){
+  const walk=(p)=>{ if(!p)return null; if(p.filename&&/\.pdf$/i.test(p.filename)&&p.body&&p.body.attachmentId)return p; if(p.parts){for(const c of p.parts){const r=walk(c);if(r)return r;}} return null; };
+  return walk(payload);
+}
+async function mailImport(silent){
+  let token; try{ token=await gmailToken(silent); }catch(e){ if(!silent)toast('Gmail: '+(e.message||'cancelado')); return; }
+  if(!token){ return; }
+  if(!silent)toast('A procurar faturas no Gmail…');
+  state.mailSeen=state.mailSeen||[]; const seen=new Set(state.mailSeen);
+  const since=((state.mailCfg&&state.mailCfg.since)||isoToday());
+  const from=((state.mailCfg&&state.mailCfg.from)||'').trim();
+  let senders=[]; if(from)senders.push(...from.split(/[,\n;]+/).map(s=>s.trim()).filter(Boolean));
+  (state.providers||[]).forEach(p=>{if(p.from)senders.push(p.from);}); senders=[...new Set(senders)];
+  let q='after:'+since.replace(/-/g,'/');
+  q += senders.length ? ' from:('+senders.join(' OR ')+')' : ' has:attachment filename:pdf';
+  const gh={'Authorization':'Bearer '+token};
+  try{
+    const lr=await (await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=40&q='+encodeURIComponent(q),{headers:gh})).json();
+    if(lr.error)throw new Error(lr.error.message||'erro Gmail');
+    const msgs=lr.messages||[]; let added=0,auto=0,dup=0,skip=0;
+    for(const mref of msgs){
+      if(seen.has(mref.id)){dup++;continue;}
+      const msg=await (await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/'+mref.id+'?format=full',{headers:gh})).json();
+      const hdr=(n)=>((msg.payload.headers||[]).find(h=>(h.name||'').toLowerCase()===n)||{}).value||'';
+      const fromHdr=hdr('from'); const prov=findProvider(fromHdr);
+      const part=_findPdfPart(msg.payload);
+      const useBody = (prov&&prov.source==='body') || (!part && prov);
+      let pf=null;
+      try{
+        if(useBody){ const txt=(_getEmailText(msg.payload)+' '+hdr('subject')).trim(); if(txt)pf=parseFatura(txt); }
+        else if(part){ const att=await (await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/'+mref.id+'/attachments/'+part.body.attachmentId,{headers:gh})).json(); pf=parseFatura(await extractPdfText(_b64urlToBlob(att.data,'application/pdf'))); }
+      }catch(e){}
+      seen.add(mref.id); state.mailSeen.push(mref.id);
+      if(!pf||pf.total==null){skip++;continue;}
+      const fromDom=_emailDomain(fromHdr); const fromName=_emailName(fromHdr);
+      const ed=new Date(+msg.internalDate||Date.now());
+      const year=pf.year!=null?pf.year:ed.getFullYear();
+      const mi=pf.mi!=null?pf.mi:ed.getMonth();
+      const it={id:nid('ib'),source:'mail',tipo:'despesa',total:pf.total,desc:(prov&&prov.label)||pf.forn||fromName||hdr('subject')||'fatura',year,mi,dia:pf.dia||null,catId:(prov&&prov.catId)||pf.catId,from:fromDom||fromHdr,fromName,providerId:prov?prov.id:null,mailId:mref.id,ts:Date.now()};
+      if(prov&&prov.auto&&it.catId&&!isFrozenMi(year,mi)){
+        const dia=(it.dia&&it.dia>=1&&it.dia<=28)?it.dia:15;
+        const ym=`${year}-${String(mi+1).padStart(2,'0')}`; const dataStr=`${ym}-${String(dia).padStart(2,'0')}`;
+        if(isDupMov('despesa',it.catId,it.total,ym)){dup++;continue;}
+        const mv={id:nid('m'),data:dataStr,tipo:'despesa',categoriaId:it.catId,valor:valorComSinal(it.catId,'despesa',it.total),pagador:P()[0].id,split:{...state.settings.splitDefault},nota:it.desc};
+        const futuro=dataStr>isoToday()&&!isPastMonth(year,mi); if(futuro)mv.pendente=true;
+        state.movimentos.push(mv); if(!futuro&&!isPastMonth(year,mi))aplicaValete(mv);
+        prov.n=(prov.n||0)+1; prov.last={total:it.total,ym}; auto++;
+      } else { state.inbox.push(it); added++; }
+    }
+    state.mailCfg.lastAuto=Date.now(); save(); render();
+    if(silent){ if(added||auto)toast(`Email: ${added} p/ rever${auto?' · '+auto+' auto-lançadas':''}`); }
+    else { toast(`Gmail: ${added} p/ rever${auto?' · '+auto+' auto-lançadas':''} · ${dup} repetidas`+(skip?` · ${skip} ignoradas`:'')); if(added)openInbox(); }
+  }catch(e){ if(!silent)toast('Falha no Gmail: '+(e.message||e)); }
+}
+let _detSenders=[];
+async function mailDetectSenders(){
+  let token; try{ token=await gmailToken(); }catch(e){ toast('Gmail: '+(e.message||'cancelado')); return; }
+  if(!token)return; toast('A detetar remetentes…');
+  const gh={'Authorization':'Bearer '+token};
+  try{
+    const lr=await (await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=60&q='+encodeURIComponent('newer_than:365d has:attachment filename:pdf'),{headers:gh})).json();
+    if(lr.error)throw new Error(lr.error.message||'erro Gmail');
+    const msgs=lr.messages||[]; const map={};
+    for(const mref of msgs){
+      const m=await (await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/'+mref.id+'?format=metadata&metadataHeaders=From',{headers:gh})).json();
+      const fromHdr=(((m.payload&&m.payload.headers)||[]).find(h=>(h.name||'').toLowerCase()==='from')||{}).value||'';
+      const dom=_emailDomain(fromHdr); if(!dom)continue;
+      if(!map[dom])map[dom]={dom,name:_emailName(fromHdr),n:0}; map[dom].n++;
+    }
+    _detSenders=Object.values(map).sort((a,b)=>b.n-a.n);
+    mailSendersModal();
+  }catch(e){ toast('Falha a detetar: '+(e.message||e)); }
+}
+function mailSendersModal(){
+  document.getElementById('back').innerHTML=`<div class="modal"><h2>${svg(I.scan)} Remetentes detetados <button class="close" data-close="1">&times;</button></h2>
+  <div class="body"><div class="hint" style="border-left:3px solid var(--acc)">Remetentes de emails com PDF no último ano. Liga cada um a um fornecedor (depois escolhe a categoria na lista).</div>
+  ${_detSenders.length?_detSenders.map((s,i)=>{const ex=findProvider(s.dom);return `<div class="catedit" style="padding:7px 0;gap:8px;flex-wrap:wrap;align-items:center">
+    <span style="flex:1;min-width:0"><b>${esc(s.name||s.dom)}</b> <span style="color:var(--mut);font-size:11px">· ${esc(s.dom)} · ${s.n} email(s)</span></span>
+    ${ex?`<span class="pill" style="background:var(--acc-16);color:var(--acc)">já ligado: ${esc(ex.label||ex.from)}</span>`:`<button class="btn sm" data-pvadddet="${i}">${svg(I.plus)}Adicionar</button>`}
+  </div>`}).join(''):'<div class="pempty" style="padding:18px">Nenhum remetente com PDF encontrado no último ano.</div>'}
+  </div><div class="foot"><div class="spacer"></div><button class="btn primary" data-close="1">Fechar</button></div></div>`;
+  openBack();
+}
+async function mailTestProvider(id){
+  const p=(state.providers||[]).find(x=>x.id===id); if(!p)return;
+  if(!p.from){toast('Define o remetente primeiro');return;}
+  let token; try{ token=await gmailToken(); }catch(e){ toast('Gmail: '+(e.message||'cancelado')); return; }
+  if(!token)return; toast('A procurar emails de '+(p.label||p.from)+'…');
+  const gh={'Authorization':'Bearer '+token};
+  try{
+    const q='from:('+p.from+') newer_than:365d'+(p.source==='body'?'':' has:attachment filename:pdf');
+    const lr=await (await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=1&q='+encodeURIComponent(q),{headers:gh})).json();
+    if(lr.error)throw new Error(lr.error.message||'erro Gmail');
+    const msgs=lr.messages||[]; if(!msgs.length){ mailTestResultModal(p,{found:false}); return; }
+    const msg=await (await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/'+msgs[0].id+'?format=full',{headers:gh})).json();
+    const hdr=(n)=>(((msg.payload&&msg.payload.headers)||[]).find(h=>(h.name||'').toLowerCase()===n)||{}).value||'';
+    const subject=hdr('subject'); const part=_findPdfPart(msg.payload); const useBody=(p.source==='body')||!part;
+    let pf=null;
+    if(useBody){ const txt=(_getEmailText(msg.payload)+' '+subject).trim(); if(txt)pf=parseFatura(txt); }
+    else if(part){ const att=await (await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/'+msgs[0].id+'/attachments/'+part.body.attachmentId,{headers:gh})).json(); pf=parseFatura(await extractPdfText(_b64urlToBlob(att.data,'application/pdf'))); }
+    mailTestResultModal(p,{found:true,subject,via:useBody?'corpo do email':'PDF anexo',pf});
+  }catch(e){ toast('Falha no teste: '+(e.message||e)); }
+}
+function mailTestResultModal(p,r){
+  let body;
+  if(!r.found){ body=`<div class="pempty" style="padding:18px">Não encontrei emails de <b>${esc(p.from)}</b> nos últimos 12 meses${p.source!=='body'?' com PDF anexo':''}.<br>Confirma o remetente${p.source!=='body'?' ou muda a fonte para ✉ corpo':''}.</div>`; }
+  else { const pf=r.pf;
+    body=`<div class="hint" style="border-left:3px solid var(--acc)">Último email encontrado (lido via <b>${r.via}</b>):<br><span style="color:var(--mut)">${esc(r.subject||'(sem assunto)')}</span></div>
+    ${(pf&&pf.total!=null)?`<div style="font-size:15px;margin-top:12px">Detetado: <b>${fmt(pf.total)}</b>${pf.dia?' · dia '+pf.dia:''}${pf.mi!=null?' · '+MESES[pf.mi].slice(0,3):''}${pf.year?'/'+pf.year:''} → ${p.catId?esc(catName(p.catId)):(pf.catId?esc(catName(pf.catId)):'(sem categoria — escolhe na lista)')}</div><p class="dsub" style="margin-top:8px">Parece bem? Então este fornecedor está pronto — liga o <b>Auto</b> na lista.</p>`:`<div style="margin-top:12px;color:var(--warn)">Encontrei o email mas não detetei o valor.${p.source!=='body'?' Experimenta mudar a fonte para ✉ corpo do email.':' Verifica se o valor aparece no texto.'}</div>`}`;
+  }
+  document.getElementById('back').innerHTML=`<div class="modal"><h2>${svg(I.scan)} Testar ${esc(p.label||p.from)} <button class="close" data-close="1">&times;</button></h2>
+  <div class="body">${body}</div>
+  <div class="foot"><div class="spacer"></div><button class="btn primary" data-close="1">Fechar</button></div></div>`;
+  openBack();
 }
 
 /* ===== FOTO DA FATURA — OCR 100% LOCAL (Tesseract.js, a imagem nunca sai do dispositivo) ===== */
