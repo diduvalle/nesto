@@ -4129,7 +4129,9 @@ async function bioUnlock(silent){
 }
 
 /* ===== Bloqueio de acesso (código simples) ===== */
-function isUnlocked(){ return !state.settings.codigo || sessionStorage.getItem('nesto-unlock')==='1'; }
+/* DEV: em localhost/preview o bloqueio fica desativado (testes ágeis). Em produção (nesto.cr0x.org) o login é normal. */
+function _devNoLock(){ const h=location.hostname; return h==='localhost'||h==='127.0.0.1'||h==='::1'||h===''; }
+function isUnlocked(){ return _devNoLock() || !state.settings.codigo || sessionStorage.getItem('nesto-unlock')==='1'; }
 let _pinEntry='';
 function _shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));const t=a[i];a[i]=a[j];a[j]=t;}return a;}
 function showLock(){
