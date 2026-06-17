@@ -143,6 +143,9 @@ label{display:block;font-size:12px;color:var(--mut);margin-bottom:5px;font-weigh
 .ins-ic{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;flex:none;background:var(--acc-12);color:var(--acc)}
 .ins-ic svg{width:17px;height:17px}
 .i-inline{vertical-align:-2px;opacity:.85}
+.ob-restore-link{text-align:center;padding:2px 28px 22px}
+.linklike{background:none;border:0;color:var(--acc);cursor:pointer;font-size:12.5px;text-decoration:underline;padding:6px;font-family:inherit}
+.linklike:hover{color:var(--accd)}
 .ins-tx{font-size:13.5px;line-height:1.4;color:var(--mut)}
 .ins-tx b{color:var(--txt);font-weight:700}
 .top-range{display:flex;align-items:center;gap:8px;margin:2px 0 14px;flex-wrap:wrap}
@@ -1886,7 +1889,7 @@ function obCloudHtml(){
   if(fsOn()) return `<div class="ob-cloud ok"><span class="pill" style="background:var(--acc-16);color:var(--acc)">● ${esc(fsProvName())} ✓</span> <span style="font-size:12.5px;color:var(--mut)">${esc(_fsName||'pasta')} · ${cloudMiniStat()}</span>${_fsNeedPerm?` <button class="btn sm" id="fsReconnect">Reativar</button>`:''}<button class="btn sm" id="fsDisc" style="margin-left:auto">Desligar</button></div>`;
   return cloudSetupHtml();
 }
-let obStep=0,_obName='',_obCode='',_obCode2='';
+let obStep=0,_obName='',_obCode='',_obCode2='',obMode='new';
 function obStepFields(){
   if(obStep===0) return `
       <div class="ob-field"><label>Como te chamas?</label>
@@ -1912,12 +1915,41 @@ function obStepFields(){
 }
 function obRenderStep(){
   const w=document.getElementById('obWizard'); if(!w)return;
+  if(obMode==='restore'){ obRenderRestore(w); return; }
   const steps=['Perfil','Segurança','Cópias'], last=obStep===2;
   w.innerHTML=`
     <div class="ob-steps">${steps.map((s,i)=>`<div class="ob-step ${i===obStep?'on':''} ${i<obStep?'done':''}"><span class="ob-stepn">${i<obStep?'✓':i+1}</span><span class="ob-stepl">${s}</span></div>`).join('')}</div>
     <div class="ob-stepbody" id="obStepBody">${obStepFields()}</div>
-    <div class="ob-foot">${obStep>0?`<button class="btn" id="obPrev">Anterior</button>`:'<span style="flex:none"></span>'}<div class="spacer"></div>${last?`<button class="btn primary" id="obDone">${svg(I.check)}Começar a usar o Nesto</button>`:`<button class="btn primary" id="obNext">Seguinte</button>`}</div>`;
+    <div class="ob-foot">${obStep>0?`<button class="btn" id="obPrev">Anterior</button>`:'<span style="flex:none"></span>'}<div class="spacer"></div>${last?`<button class="btn primary" id="obDone">${svg(I.check)}Começar a usar o Nesto</button>`:`<button class="btn primary" id="obNext">Seguinte</button>`}</div>
+    ${obStep===0?`<div class="ob-restore-link"><button class="linklike" data-obrestore="1">Já uso o Nesto noutro dispositivo — restaurar os meus dados</button></div>`:''}`;
   const fi=w.querySelector('#obStepBody input[type=text],#obStepBody input[inputmode=numeric]'); if(fi)setTimeout(()=>{try{fi.focus();}catch(_){}} ,40);
+}
+/* ecrã "Já tenho conta" — liga a cloud existente (ou importa JSON) e traz tudo (perfil, PIN, dados) */
+function obRenderRestore(w){
+  w.innerHTML=`
+    <div class="ob-stepbody">
+      <div class="ob-field">
+        <label>Entrar / restaurar os meus dados</label>
+        <p class="dsub" style="margin-top:0">Liga a conta onde já usas o Nesto (ou importa uma cópia) e trazemos tudo — perfil, código de acesso e movimentos. Não precisas de criar nada de novo.</p>
+        <div id="obCloud">${obCloudHtml()}</div>
+        <div class="cloud-or"><span>ou</span></div>
+        <button class="btn" id="obImpBtn" style="width:100%;justify-content:center">${svg(I.upload)} Importar cópia (ficheiro JSON)</button>
+        <input type="file" id="obFileIn" accept=".json" style="display:none">
+      </div>
+    </div>
+    <div class="ob-foot"><button class="btn" data-obrestore="0">← Criar conta nova</button><div class="spacer"></div></div>`;
+}
+/* chamado após ligar a cloud / importar JSON durante o onboarding: se vieram dados de uma conta já existente, entra direto */
+function obMaybeRestored(){
+  if(!document.getElementById('onboard')||obMode!=='restore')return false;
+  if(state.settings.onboarded){
+    const ob=document.getElementById('onboard'); if(ob)ob.remove();
+    if(state.settings.codigo){ sessionStorage.removeItem('nesto-unlock'); render(); showLock(); }
+    else { sessionStorage.setItem('nesto-unlock','1'); render(); }
+    toast('Bem-vindo de volta 🎉'); return true;
+  }
+  toast('Ligámos a conta, mas ainda não há dados do Nesto aí. Cria uma conta nova ou tenta outra conta.');
+  return false;
 }
 function obCapture(){ if(obStep===0){const n=document.getElementById('obName'); if(n)_obName=n.value.trim();} if(obStep===1){const c=document.getElementById('obCode'); if(c)_obCode=(c.value||'').trim(); const c2=document.getElementById('obCode2'); if(c2)_obCode2=(c2.value||'').trim();} }
 /* validação do PIN do onboarding: formato + confirmação iguais; devolve {msg,focus} ou null */
@@ -1940,7 +1972,7 @@ function obFinish(){
 }
 function showOnboarding(){
   if(document.getElementById('onboard'))return;
-  obStep=0; _obName=(P()[0].nome==='Eu'?'':P()[0].nome); _obCode=''; _obCode2='';
+  obStep=0; obMode='new'; _obName=(P()[0].nome==='Eu'?'':P()[0].nome); _obCode=''; _obCode2='';
   const d=document.createElement('div'); d.id='onboard';
   d.style.cssText='position:fixed;inset:0;z-index:9998;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:18px;overflow:auto';
   d.innerHTML=`<div class="obbox">
@@ -2507,6 +2539,8 @@ document.addEventListener('click',e=>{
   if(t.id==='obNext'){ obGo(1); return; }
   if(t.id==='obPrev'){ obGo(-1); return; }
   if(t.id==='obDone'){ obFinish(); return; }
+  if(d.obrestore!=null){ obMode=d.obrestore==='1'?'restore':'new'; if(obMode==='new')obStep=0; obRenderStep(); return; }
+  if(t.id==='obImpBtn'){ const f=document.getElementById('obFileIn'); if(f)f.click(); return; }
   if(d.delmov){const mv=state.movimentos.find(x=>x.id===d.delmov);if(mv&&isFrozenYm(mv.data.slice(0,7))){toast('Mês congelado — não pode ser apagado');return;}if(mv&&!confirm('Apagar este movimento?\n'+catName(mv.categoriaId)+' · '+fmt(Math.abs(mv.valor))+' · '+mv.data))return;reverteValete(mv);state.movimentos=state.movimentos.filter(x=>x.id!==d.delmov);save();const pc=popCell;render();if(pc){const an=document.querySelector(`[data-cell="${pc.catId}|${pc.mi}"]`);if(an)openCellPop(pc.catId,pc.mi,an);}return;}
   if(d.delcat){delCat(d.delcat);return;}
   if(d.newcat){openNewCat(d.newcat);return;}
@@ -2621,6 +2655,7 @@ document.addEventListener('change',e=>{
   if(e.target.id==='logoIn'&&e.target.files[0]){processLogo(e.target.files[0]);e.target.value='';return;}
   if(e.target.id==='obLogoIn'&&e.target.files[0]){processLogo(e.target.files[0],()=>{const pv=document.getElementById('obLogoPrev');if(pv)pv.innerHTML=`<img src="${state.settings.logo}" alt="logo">`;});e.target.value='';return;}
   if(e.target.id==='fileIn'&&e.target.files[0]){impJSON(e.target.files[0]);}
+  if(e.target.id==='obFileIn'&&e.target.files[0]){impJSON(e.target.files[0]);return;}
   if(e.target.id==='pdfIn'&&e.target.files[0]){const fs=[...e.target.files];e.target.value='';if(fs.length===1)processFatura(fs[0]);else processFaturasBatch(fs);}
   if(e.target.id==='fmPdfIn'&&e.target.files[0]){const f=e.target.files[0];e.target.value='';processFatura(f);}
   if(e.target.id==='reciboIn'&&e.target.files[0]){processRecibo(e.target.files[0]);e.target.value='';}
@@ -2964,7 +2999,7 @@ async function dbxFinishAuth(){
     if(!r.ok)throw new Error('token '+r.status);
     const j=await r.json(); dbxSet({key:c.key,refresh:j.refresh_token});
     _dbxTok=j.access_token; _dbxTokExp=Date.now()+((j.expires_in||14400)-60)*1000;
-    toast('Dropbox ligada ✓'); await syncOpen(); dailyBackup(); render();
+    toast('Dropbox ligada ✓'); await syncOpen(); dailyBackup(); if(obMaybeRestored())return; render();
   }catch(e){toast('Falha a ligar: '+e.message); _syncErr=e.message; render();}
 }
 function dbxDisconnect(){localStorage.removeItem('nesto-dropbox');_dbxTok=null;_lastSync=null;_syncErr=null;toast('Dropbox desligada');render();}
@@ -3086,7 +3121,7 @@ async function fsConnect(){
     if(!(await fsPerm(h,true))){toast('Sem permissão para a pasta');return;}
     _fsHandle=h; _fsName=h.name||'pasta'; _fsNeedPerm=false;
     await idbSet('fsHandle',h); localStorage.setItem('nesto-fs',JSON.stringify({on:true,name:_fsName,prov:_cloudProv&&_cloudProv!=='dropbox'?_cloudProv:'outra'}));
-    await fsSyncOpen(); dailyBackup(); toast('Pasta ligada ✓ · '+_fsName); render();
+    await fsSyncOpen(); dailyBackup(); if(obMaybeRestored())return; toast('Pasta ligada ✓ · '+_fsName); render();
   }catch(e){ if(e&&e.name==='AbortError')return; toast('Não ligou: '+(e.message||e.name)); }
 }
 function fsDisconnect(){ _fsHandle=null;_fsName='';_fsNeedPerm=false; localStorage.removeItem('nesto-fs'); idbDel('fsHandle'); _lastSync=null; toast('Pasta desligada'); render(); }
@@ -3683,7 +3718,7 @@ function expCSV(){
   const csv='﻿'+rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(';')).join('\r\n');
   dl(new Blob([csv],{type:'text/csv'}),'Nesto-movimentos.csv');
 }
-function impJSON(file){const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.categorias||!d.movimentos)throw 0;localStorage.setItem(KEY,JSON.stringify(d));load();tab='grelha';render();toast('Dados importados');}catch(e){toast('Ficheiro inválido');}};r.readAsText(file);}
+function impJSON(file){const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.categorias||!d.movimentos)throw 0;localStorage.setItem(KEY,JSON.stringify(d));load();if(obMaybeRestored())return;tab='grelha';render();toast('Dados importados');}catch(e){toast('Ficheiro inválido');}};r.readAsText(file);}
 
 /* ----- boot ----- */
 /* atualizar: desliga o service worker, limpa caches e recarrega da rede (resolve "ficou na versão antiga") */
