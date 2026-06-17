@@ -122,12 +122,13 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 #bell{background:none;border:0;color:var(--mut);cursor:pointer;position:relative;padding:6px;border-radius:9px;display:inline-flex}
 #bell:hover{color:var(--txt);background:var(--card)}
 #bell svg{width:19px;height:19px;display:block}
-#refreshBtn,#searchBtn{background:none;border:0;color:var(--mut);cursor:pointer;padding:6px;border-radius:9px;display:inline-flex}
-#refreshBtn:hover,#searchBtn:hover{color:var(--txt);background:var(--card)}
-#refreshBtn svg,#searchBtn svg{width:18px;height:18px;display:block}
+#refreshBtn,#searchBtn,#inboxTop{background:none;border:0;color:var(--mut);cursor:pointer;padding:6px;border-radius:9px;display:inline-flex;position:relative}
+#refreshBtn:hover,#searchBtn:hover,#inboxTop:hover{color:var(--txt);background:var(--card)}
+#refreshBtn svg,#searchBtn svg,#inboxTop svg{width:18px;height:18px;display:block}
 #refreshBtn.spin svg{animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .bell-badge{position:absolute;top:-1px;right:-1px;background:var(--out);color:#fff;font-size:10px;font-weight:800;min-width:15px;height:15px;border-radius:8px;display:grid;place-items:center;padding:0 3px}
+.ib-badge{font-size:10px;font-weight:700;color:var(--acc);background:var(--acc-12);border-radius:6px;padding:1px 6px;vertical-align:1px}
 label{display:block;font-size:12px;color:var(--mut);margin-bottom:5px;font-weight:600}
 .main{padding:22px 24px 92px;flex:1;width:100%;max-width:1200px;margin:0 auto}
 /* KPI strip */
@@ -411,7 +412,7 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
 .chip.warn{border-color:var(--out);color:var(--out)}
 .chip.warn svg{width:14px;height:14px}
 #valeteHead{display:inline-flex;align-items:center;gap:6px}
-.topbar #refreshBtn,.topbar #bell,.topbar #lockNow,.topbar #searchBtn{height:34px;width:34px;padding:0;align-items:center;justify-content:center}
+.topbar #refreshBtn,.topbar #bell,.topbar #lockNow,.topbar #searchBtn,.topbar #inboxTop{height:34px;width:34px;padding:0;align-items:center;justify-content:center}
 #lockNow{background:none;border:0;color:var(--mut);cursor:pointer;border-radius:9px;display:inline-flex}
 #lockNow:hover{color:var(--out);background:var(--card)}
 #lockNow svg{width:18px;height:18px;display:block}
@@ -664,6 +665,7 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
       <div class="spacer"></div>
       <div id="topright"></div>
       <div id="valeteHead"></div>
+      <button id="inboxTop" title="Caixa de entrada"></button>
       <button id="searchBtn" title="Pesquisar movimentos"></button>
       <button id="refreshBtn" title="Atualizar — limpar cache e recarregar"></button>
       <button id="bell" title="Alertas & poupança"></button>
@@ -839,6 +841,7 @@ function load(){
   state.inbox = state.inbox || [];         // caixa de entrada de faturas lidas por QR (por classificar)
   state.settings.valeteMargem = state.settings.valeteMargem ?? 0; // margem de segurança do saldo
   state.settings.diaSalario = state.settings.diaSalario ?? 23; // dia em que a receita costuma entrar
+  if(state.settings.autoLockMin==null) state.settings.autoLockMin = 3; // bloqueio automático por inatividade (min); 0 = desligado
   if(state.settings.codigo===undefined) state.settings.codigo=''; // sem bloqueio por defeito
   state.recorrencias=state.recorrencias||[]; state.movimentos=state.movimentos||[]; state.poupancas=state.poupancas||{}; state.orcamentos=state.orcamentos||{};
   state.dividas=state.dividas||[]; // gestor de dívidas (alguém me deve / eu devo)
@@ -1095,6 +1098,7 @@ function render(){
   if(_alerta){ _vChip += `<div class="chip warn" title="Estimativa: por volta do dia ${_vf.faltaDia} o saldo desce abaixo da margem (faltam ~${fmt(_vf.faltaValor)}). Detalhe no sino.">${svg(I.bell)}<b>−${fmt(_vf.faltaValor)}</b></div>`; }
   document.getElementById('valeteHead').innerHTML = _vChip;
   const _al=computeAlertas(); const _bn=_al.n+(_alerta?1:0); document.getElementById('bell').innerHTML=`${svg(I.bell)}${_bn?`<span class="bell-badge">${_bn}</span>`:''}`;
+  const _ib=document.getElementById('inboxTop'); const _ibn=(state.inbox||[]).length; if(_ib){ _ib.innerHTML=`${svg(I.inbox)}${_ibn?`<span class="bell-badge">${_ibn}</span>`:''}`; _ib.style.display=_ibn?'inline-flex':'none'; }
   document.getElementById('searchBtn').innerHTML=svg(I.search);
   document.getElementById('refreshBtn').innerHTML=svg(I.repeat);
   const _ln=document.getElementById('lockNow'); _ln.innerHTML=svg(I.logout); _ln.style.display='inline-flex'; _ln.title=state.settings.codigo?'Bloquear (sair)':'Bloquear — define um código nas Definições';
@@ -2357,6 +2361,7 @@ function vDefs(m){
         <div class="setf">${lbl('Logótipo da app','Aparece no topo da app. O ecrã de bloqueio mantém sempre o ninho. Quando defines um logótipo teu, o ninho original passa para o rodapé. Guardado e sincronizado.')}<div class="setrow"><div class="logoprev">${state.settings.logo?`<img src="${state.settings.logo}" alt="logo">`:svg(I.nest)}</div><button class="btn sm" id="logoBtn">${svg(I.upload)}Carregar</button>${state.settings.logo?`<button class="btn sm danger" id="logoRem">Remover</button>`:''}<input type="file" id="logoIn" accept="image/*" style="display:none"></div></div>
         <div class="setf">${lbl('Código de acesso','Pedido sempre que abres a app. Mínimo 4 dígitos (obrigatório). É um bloqueio simples — não é segurança forte.')}<div class="setrow"><span class="pin-wrap" style="max-width:150px"><input id="codigoIn" type="password" autocomplete="new-password" inputmode="numeric" value="${esc(state.settings.codigo||'')}"><button type="button" class="eye-btn" data-eyetoggle="codigoIn" aria-label="Mostrar/ocultar PIN">${svg(I.eye)}</button></span><button class="btn sm" id="saveCodigo">Guardar</button></div></div>
         <div class="setf">${lbl('Biometria','Desbloqueias com a digital/rosto; o código fica como alternativa. Ativa-se em cada dispositivo. Precisa de abrir pelo link https.')}${bioSupported()?(bioCfg()?`<div class="setrow"><span class="pill" style="background:var(--acc-16);color:var(--acc)">● Ativa</span><button class="btn sm" id="bioRem">Remover</button></div>`:`<button class="btn sm" id="bioReg">${svg(I.finger)}Ativar neste dispositivo</button>`):`<span class="dsub" style="margin:0">Indisponível (precisa de https + biometria no dispositivo).</span>`}</div>
+        <div class="setf">${lbl('Bloqueio automático','Ao fim de X minutos sem mexeres na app, ela bloqueia e volta a pedir o código. 0 = desligado. Só funciona com código definido.')}<div class="setrow"><input id="autoLockIn" type="number" min="0" max="120" value="${state.settings.autoLockMin!=null?state.settings.autoLockMin:3}" style="max-width:90px"><span style="color:var(--mut);font-size:13px">min (0 = desligado)</span></div></div>
         <div class="setf wide">${lbl('Lembretes de débitos','Ao abrir a app, lembra-te dos débitos diretos dos próximos dias (ex.: amanhã sai a Endesa ~42 €), com base no dia que a app aprendeu de cada fatura.')}<div class="setrow"><button class="btn sm ${state.settings.notif?'primary':''}" id="notifToggle">${svg(I.bell)}${state.settings.notif?'Notificações ativas':'Ativar notificações'}</button></div></div>
       </div>
     </div>
@@ -2431,6 +2436,14 @@ function vDefs(m){
         <button class="btn sm" id="impBtn">${svg(I.upload)}Importar JSON</button>
         <button class="btn sm" id="csv">${svg(I.download)}Exportar CSV</button>
         <input type="file" id="fileIn" accept=".json" style="display:none">
+      </div>
+    </div>
+
+    <div class="card">${dh(I.upload,'Importar extrato (CSV)','Importa um ficheiro CSV de um cartão, banco ou cartão de benefícios (Coverflex…). Deteta as colunas (data, valor, descrição) e o sinal: valores negativos = despesa, positivos = receita. Os movimentos vão para a Caixa de entrada para confirmares.')}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+        <div style="flex:1 1 160px"><label style="font-size:11px;color:var(--mut)">Categoria por defeito <span style="opacity:.7">(opcional)</span></label><select id="csvCat"><option value="">— adivinhar pela descrição —</option>${catOptions('despesa','')}</select></div>
+        <button class="btn sm primary" id="csvImport">${svg(I.upload)}Escolher CSV</button>
+        <input type="file" id="csvIn" accept=".csv,text/csv" style="display:none">
       </div>
     </div>
 
@@ -2587,7 +2600,9 @@ document.addEventListener('click',e=>{
   if(t.id==='impFatura'){const f=document.getElementById('pdfIn');if(f)f.click();return;}
   if(t.id==='impRecibo'){const f=document.getElementById('reciboIn');if(f)f.click();return;}
   if(t.id==='impFoto'){const f=document.getElementById('fotoIn');if(f)f.click();return;}
-  if(t.id==='inboxBtn'){openInbox();return;}
+  if(t.id==='inboxBtn'||t.id==='inboxTop'){openInbox();return;}
+  if(t.id==='ibAddAll'){inboxAddAll();return;}
+  if(t.id==='ibClear'){inboxClearAll();return;}
   if(d.ibadd){inboxAdd(d.ibadd);return;}
   if(d.ibdel){inboxDiscard(d.ibdel);return;}
   if(d.fatcand){const i=document.getElementById('fatVal');if(i)i.value=(+d.fatcand).toFixed(2);return;}
@@ -2625,6 +2640,7 @@ document.addEventListener('click',e=>{
   if(t.id==='exp'){expJSON();return;}
   if(t.id==='csv'){expCSV();return;}
   if(t.id==='impBtn'){document.getElementById('fileIn').click();return;}
+  if(t.id==='csvImport'){const f=document.getElementById('csvIn');if(f)f.click();return;}
   if(t.id==='reset'){if(cloudOn()){toast('Desliga primeiro a sincronização (senão a cloud repõe os dados)');return;}if(confirm('Apagar TODOS os dados deste dispositivo e recomeçar do zero? Esta ação não tem volta.')){localStorage.removeItem(KEY);state=null;load();tab='resumo';render();toast('Dados apagados — recomeço do zero');try{if(!state.settings.onboarded)showOnboarding();}catch(_){}}return;}
   if(d.close){closeBack();return;}
   if(t.id==='saveNewCat'){saveNewCat();return;}
@@ -2645,6 +2661,7 @@ document.addEventListener('keydown',e=>{
   }
 });
 document.addEventListener('change',e=>{
+  if(e.target.id==='autoLockIn'){state.settings.autoLockMin=Math.max(0,Math.min(120,parseInt(e.target.value)||0));save();resetIdle();toast(state.settings.autoLockMin?('Bloqueio automático: '+state.settings.autoLockMin+' min'):'Bloqueio automático desligado');return;}
   if(e.target.id==='pgGrelha'){const w=document.getElementById('pgCatWrap');if(w)w.style.display=e.target.checked?'block':'none';return;}
   if(e.target.id==='mtcTipo'){const t=document.getElementById('mtcTaxa');if(t)t.value=(TIPOS_POUP[e.target.value]||{taxa:0}).taxa||'';return;}
   if(e.target.id==='catColPick'){const c=cat(e.target.dataset.cat);if(c){c.cor=e.target.value;save();render();openCatIcon(e.target.dataset.cat);}return;}
@@ -2655,6 +2672,7 @@ document.addEventListener('change',e=>{
   if(e.target.id==='logoIn'&&e.target.files[0]){processLogo(e.target.files[0]);e.target.value='';return;}
   if(e.target.id==='obLogoIn'&&e.target.files[0]){processLogo(e.target.files[0],()=>{const pv=document.getElementById('obLogoPrev');if(pv)pv.innerHTML=`<img src="${state.settings.logo}" alt="logo">`;});e.target.value='';return;}
   if(e.target.id==='fileIn'&&e.target.files[0]){impJSON(e.target.files[0]);}
+  if(e.target.id==='csvIn'&&e.target.files[0]){const cat=(document.getElementById('csvCat')||{}).value||null;importExtratoCSV(e.target.files[0],cat);e.target.value='';return;}
   if(e.target.id==='obFileIn'&&e.target.files[0]){impJSON(e.target.files[0]);return;}
   if(e.target.id==='pdfIn'&&e.target.files[0]){const fs=[...e.target.files];e.target.value='';if(fs.length===1)processFatura(fs[0]);else processFaturasBatch(fs);}
   if(e.target.id==='fmPdfIn'&&e.target.files[0]){const f=e.target.files[0];e.target.value='';processFatura(f);}
@@ -3298,29 +3316,33 @@ async function processFatura(file){
   }catch(e){ toast('Falha a ler o PDF: '+(e.message||e.name||'erro')); }
 }
 /* ===== CAIXA DE ENTRADA DE FATURAS (lidas por QR, por classificar) ===== */
+const INBOX_BADGE={mail:'📧 email',csv:'🧾 extrato',bank:'🏦 banco',qr:'QR'};
 function openInbox(){
   const items=(state.inbox||[]).slice().sort((a,b)=>(b.ts||0)-(a.ts||0));
   const row=(it)=>{
-    const provider = it.catId?catName(it.catId):(it.nif?('NIF '+it.nif):'desconhecido');
+    const tipo=it.tipo||'despesa';
+    const provider = it.catId?catName(it.catId):(it.fromName?esc(it.fromName):(it.nif?('NIF '+it.nif):(it.desc?esc(it.desc):'por classificar')));
     const ym = (it.mi!=null?it.mi:new Date().getMonth());
+    const badge = it.source&&INBOX_BADGE[it.source]?`<span class="ib-badge">${INBOX_BADGE[it.source]}</span>`:'';
     return `<div style="border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <div><b style="font-size:15px">${fmt(it.total)}</b> <span style="color:var(--mut);font-size:12px">· ${esc(provider)}${it.nif?'':' '}${it.year?(' · '+(it.mi!=null?MESES[it.mi].slice(0,3)+'/':'' )+it.year):''}</span></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px">
+        <div style="min-width:0"><b style="font-size:15px;color:${tipo==='receita'?'var(--in)':'var(--txt)'}">${tipo==='receita'?'+':''}${fmt(Math.abs(it.total))}</b> ${badge} <span style="color:var(--mut);font-size:12px">· ${provider}${it.year?(' · '+(it.mi!=null?MESES[it.mi].slice(0,3)+'/':'' )+it.year):''}</span></div>
         <button class="btn sm danger" data-ibdel="${it.id}">Descartar</button>
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end">
-        <div style="flex:1 1 150px"><label style="font-size:11px;color:var(--mut)">Categoria</label><select id="ibcat_${it.id}">${catOptions('despesa',it.catId)}</select></div>
+        <div style="flex:1 1 150px"><label style="font-size:11px;color:var(--mut)">Categoria</label><select id="ibcat_${it.id}"><option value="">— escolher —</option>${catOptions(tipo,it.catId)}</select></div>
         <div><label style="font-size:11px;color:var(--mut)">Mês</label><select id="ibmes_${it.id}">${MESES.map((x,k)=>`<option value="${k}" ${k===ym?'selected':''}>${x.slice(0,3)}</option>`).join('')}</select></div>
         <div><label style="font-size:11px;color:var(--mut)">Ano</label><input id="ibano_${it.id}" type="number" step="1" value="${it.year||ano}" style="width:64px"></div>
-        <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--mut);height:38px" title="Pago em dinheiro (sai do Cofre, não do saldo real)"><input type="checkbox" id="ibcash_${it.id}">${isvg('cash',14)}</label>
+        ${tipo==='receita'?'':`<label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--mut);height:38px" title="Pago em dinheiro (sai do Cofre, não do saldo real)"><input type="checkbox" id="ibcash_${it.id}">${isvg('cash',14)}</label>`}
         <button class="btn primary sm" data-ibadd="${it.id}" style="height:38px">${svg(I.check)}Adicionar</button>
       </div>
     </div>`;
   };
   document.getElementById('back').innerHTML=`<div class="modal"><h2>${svg(I.inbox)} Caixa de entrada <button class="close" data-close="1">&times;</button></h2>
   <div class="body">
-    <div class="hint" style="border-left:3px solid var(--acc)">Faturas/compras lidas por <b>QR</b> (valor exato). Escolhe a categoria e <b>Adicionar</b>. Compras gerais entram na <b>data da fatura</b>; se escolheres uma categoria recorrente (luz, água…), entra no <b>dia de débito aprendido</b> (agendado se for futuro). Marca a caixa do dinheiro se pagaste em numerário.</div>
-    ${items.length?items.map(row).join(''):'<div class="pempty" style="padding:24px">Caixa de entrada vazia. Usa <b>Foto da fatura</b> para capturar pelo QR.</div>'}
+    <div class="hint" style="border-left:3px solid var(--acc)">Movimentos por classificar (QR, foto, email, extrato CSV). Escolhe a categoria e <b>Adicionar</b>. Serviços recorrentes (luz, água…) entram no <b>dia de débito</b> aprendido (agendado se for futuro); o resto entra na data real.</div>
+    ${items.length?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px"><button class="btn sm primary" id="ibAddAll">${svg(I.check)}Adicionar todas</button><button class="btn sm danger" id="ibClear">Descartar todas</button><span class="dsub" style="margin:0;align-self:center">${items.length} item(s)</span></div>`:''}
+    ${items.length?items.map(row).join(''):'<div class="pempty" style="padding:24px">Caixa de entrada vazia. Captura por <b>Foto/QR</b>, <b>email</b> ou <b>importar CSV</b>.</div>'}
   </div>
   <div class="foot"><div class="spacer"></div><button class="btn primary" data-close="1">Fechar</button></div></div>`;
   openBack();
@@ -3331,32 +3353,115 @@ function inboxAdd(id){
   if(!catId){toast('Escolhe a categoria');return;}
   const mi=+((document.getElementById('ibmes_'+id)||{}).value)||0;
   const year=+((document.getElementById('ibano_'+id)||{}).value)||ano;
-  const cash=!!(document.getElementById('ibcash_'+id)||{}).checked;
-  if(isFrozenMi(year,mi)){toast('Mês congelado — desbloqueia na grelha');return;}
-  const rec=(state.recorrencias||[]).find(r=>r.categoriaId===catId&&r.ativo!==false);
-  const recorrente = !!(rec&&rec.dia);
-  // recorrente => dia de débito aprendido (pode ser agendado); compra geral => data da fatura (já paga)
+  const cash=(it.tipo!=='receita') && !!(document.getElementById('ibcash_'+id)||{}).checked;
+  const r=_commitInbox(it,catId,mi,year,cash,false);
+  if(r.status==='frozen'){toast('Mês congelado — desbloqueia na grelha');return;}
+  if(r.status==='cancel')return;
+  save(); render(); openInbox();
+  toast((r.futuro?'Agendado p/ '+r.dia+'/'+String(mi+1).padStart(2,'0')+': ':(cash?'Dinheiro: ':(r.tipo==='receita'?'Receita: ':'Adicionada: ')))+fmt(Math.abs(it.total))+' · '+catName(catId));
+}
+/* núcleo partilhado: cria o movimento a partir de um item da inbox (sem save/render). silent=true salta os confirm. */
+function _commitInbox(it,catId,mi,year,cash,silent){
+  const tipo=it.tipo||'despesa';
+  const isBank=it.source==='bank';
+  const isMail=it.source==='mail'||it.source==='csv'; // email e CSV: data real + nota = descrição
+  const useExact=isBank||isMail; // já trazem a data real
+  if(isFrozenMi(year,mi)) return {status:'frozen'};
+  const rec=tipo==='despesa'?(state.recorrencias||[]).find(r=>r.categoriaId===catId&&r.ativo!==false):null;
+  const recorrente = !useExact && !!(rec&&rec.dia);
   const dia = recorrente ? Math.min(rec.dia,28) : (it.dia&&it.dia>=1&&it.dia<=28?it.dia:15);
   const ym=`${year}-${String(mi+1).padStart(2,'0')}`;
   const dataStr=`${ym}-${String(dia).padStart(2,'0')}`;
-  const dupe=isDupMov('despesa',catId,it.total,ym);
-  if(dupe&&!confirm('Já existe uma despesa igual neste mês ('+catName(catId)+' · '+fmt(Math.abs(dupe.valor))+').\nAdicionar à mesma?'))return;
-  const mv={id:nid('m'),data:dataStr,tipo:'despesa',categoriaId:catId,valor:Math.abs(it.total),pagador:P()[0].id,split:{...state.settings.splitDefault},nota:'fatura'};
+  const dupe=isDupMov(tipo,catId,it.total,ym);
+  if(dupe){ if(silent) return {status:'dupe'}; if(!confirm('Já existe um movimento igual neste mês ('+catName(catId)+' · '+fmt(Math.abs(dupe.valor))+').\nAdicionar à mesma?')) return {status:'cancel'}; }
+  const mv={id:nid('m'),data:dataStr,tipo,categoriaId:catId,valor:valorComSinal(catId,tipo,it.total),pagador:P()[0].id,split:{...state.settings.splitDefault},nota:(isBank||isMail)?(it.desc||(isMail?'fatura':'banco')):'fatura'};
   if(rec)mv.recId=rec.id;
   if(cash){mv.cash=true;mv.ts=Date.now();}
-  // só agenda (pendente) faturas de serviço recorrente com débito futuro; compras gerais entram já pagas
-  const futuro = recorrente && !cash && dataStr>isoToday() && !isPastMonth(year,mi);
+  // banco pendente, ou email/CSV/recorrente com débito futuro => agendado
+  const futuro = (isBank ? it.pend : ((isMail||recorrente) && !cash && dataStr>isoToday())) && !isPastMonth(year,mi);
   if(futuro)mv.pendente=true;
   state.movimentos.push(mv); if(!futuro && !isPastMonth(year,mi))aplicaValete(mv);
   if(it.nif)state.nifMap[it.nif]=catId; // aprende NIF -> categoria
-  state.inbox=state.inbox.filter(x=>x.id!==id);
+  if(isMail && it.from){ // aprende remetente -> categoria (cria/atualiza fornecedor)
+    state.providers=state.providers||[];
+    let pv=findProvider(it.from); if(!pv){pv={id:nid('pv'),label:it.fromName||it.from,from:it.from,catId,auto:false,n:0,last:null};state.providers.push(pv);}
+    pv.catId=catId; pv.n=(pv.n||0)+1; pv.last={total:it.total,ym};
+  }
+  state.inbox=state.inbox.filter(x=>x.id!==it.id);
+  return {status:'ok',dia,futuro,tipo};
+}
+/* adiciona todos os itens que já têm categoria (salta os sem categoria e os repetidos) */
+function inboxAddAll(){
+  const items=(state.inbox||[]).slice();
+  if(!items.length){toast('Caixa de entrada vazia');return;}
+  let ok=0,nocat=0,dupe=0,frozen=0;
+  items.forEach(it=>{
+    const catId=(document.getElementById('ibcat_'+it.id)||{}).value||it.catId;
+    if(!catId){nocat++;return;}
+    const mi=+((document.getElementById('ibmes_'+it.id)||{}).value)||0;
+    const year=+((document.getElementById('ibano_'+it.id)||{}).value)||ano;
+    const cash=(it.tipo!=='receita') && !!(document.getElementById('ibcash_'+it.id)||{}).checked;
+    const r=_commitInbox(it,catId,mi,year,cash,true);
+    if(r.status==='ok')ok++; else if(r.status==='dupe')dupe++; else if(r.status==='frozen')frozen++;
+  });
   save(); render(); openInbox();
-  toast((futuro?'Agendada p/ '+dia+'/'+String(mi+1).padStart(2,'0')+': ':(cash?'Dinheiro: ':'Adicionada: '))+fmt(Math.abs(it.total))+' · '+catName(catId));
+  toast(`Adicionados ${ok}`+(nocat?` · ${nocat} sem categoria`:'')+(dupe?` · ${dupe} repetidos`:'')+(frozen?` · ${frozen} mês congelado`:''));
+}
+function inboxClearAll(){
+  if(!(state.inbox||[]).length)return;
+  if(!confirm('Descartar TODAS as faturas da caixa de entrada? ('+state.inbox.length+')'))return;
+  state.inbox=[]; save(); render(); openInbox();
 }
 function inboxDiscard(id){
   const it=(state.inbox||[]).find(x=>x.id===id); if(!it)return;
   if(!confirm('Descartar esta fatura da caixa de entrada?\n'+fmt(it.total)))return;
   state.inbox=state.inbox.filter(x=>x.id!==id); save(); render(); openInbox();
+}
+/* fornecedor de email aprendido (remetente -> categoria) */
+function findProvider(fromHdr){const dom=_emailDomain(fromHdr);const fl=String(fromHdr||'').toLowerCase();return (state.providers||[]).find(x=>x.from&&((dom&&x.from===dom)||fl.includes(String(x.from).toLowerCase())))||null;}
+function _emailDomain(fromHdr){const m=String(fromHdr||'').match(/<([^>]+)>/);const addr=(m?m[1]:fromHdr||'').trim();const at=addr.indexOf('@');return at>=0?addr.slice(at+1).toLowerCase():'';}
+function _emailName(fromHdr){const s=String(fromHdr||'').trim();const m=s.match(/^"?([^"<]+?)"?\s*</);return m?m[1].trim():_emailDomain(s)||s;}
+/* adivinha a categoria pela descrição (match pelo nome de uma categoria do mesmo tipo) */
+function guessCatFromDesc(desc,tipo){
+  const n=(desc||'').toLowerCase(); if(!n)return null;
+  for(const c of state.categorias){ if(c.tipo!==tipo)continue; const nm=(c.nome||'').toLowerCase(); if(nm.length>=3 && n.includes(nm)) return c.id; }
+  return null;
+}
+/* ===== Importar extrato CSV (cartões, banco, Coverflex/cartão de benefícios…) → Caixa de entrada ===== */
+function parseCSV(text){
+  text=String(text||'').replace(/\r\n?/g,'\n').replace(/^﻿/,'').trim();
+  const lines=text.split('\n').filter(l=>l.trim()); if(!lines.length)return {header:[],rows:[]};
+  const delim=((lines[0].match(/;/g)||[]).length > (lines[0].match(/,/g)||[]).length) ? ';' : ',';
+  const parseLine=(l)=>{const out=[];let cur='',q=false;for(let i=0;i<l.length;i++){const c=l[i];if(q){if(c==='"'){if(l[i+1]==='"'){cur+='"';i++;}else q=false;}else cur+=c;}else{if(c==='"')q=true;else if(c===delim){out.push(cur);cur='';}else cur+=c;}}out.push(cur);return out.map(s=>s.trim());};
+  return {header:parseLine(lines[0]).map(h=>h.toLowerCase()), rows:lines.slice(1).map(parseLine)};
+}
+function _csvCol(header,names){for(const n of names){const i=header.findIndex(h=>h.includes(n));if(i>=0)return i;}return -1;}
+async function importExtratoCSV(file,defaultCatId){
+  if(!file)return; toast('A ler o CSV…');
+  let text=''; try{ text=await file.text(); }catch(e){ toast('Não consegui ler o ficheiro'); return; }
+  const {header,rows}=parseCSV(text);
+  if(!rows.length){ toast('CSV vazio ou inválido'); return; }
+  const di=_csvCol(header,['data','date']);
+  const ai=_csvCol(header,['amount','valor','montante','quantia','importe','value']);
+  const mi=_csvCol(header,['merchant','comerciante','payee','descri','description','estabelec','nome','note','detalhe']);
+  const ci=_csvCol(header,['categoria','category']);
+  if(ai<0){ toast('CSV: não encontrei a coluna do valor. Cabeçalho lido: '+header.join(', ')); return; }
+  let added=0;
+  rows.forEach(r=>{
+    const val=parseValorPT(String(r[ai]||'').replace(/[€\s]/g,''));
+    if(val==null||val===0)return;
+    const tipo = val<0 ? 'despesa' : 'receita';
+    const total=Math.abs(val);
+    let y,mo,d; const dt=di>=0?parseDataPT(r[di]):null; const now=new Date();
+    if(dt){mo=dt[0];y=dt[1];d=dt[2];} else {y=now.getFullYear();mo=now.getMonth();}
+    const desc=(mi>=0&&r[mi])||(ci>=0&&r[ci])||'extrato';
+    const catId=defaultCatId||guessCatFromDesc(desc,tipo)||null;
+    state.inbox.push({id:nid('ib'),source:'csv',tipo,total,desc,year:y,mi:mo,dia:d||null,catId,ts:Date.now()});
+    added++;
+  });
+  save(); render();
+  toast(`CSV: ${added} movimento(s) na Caixa de entrada`);
+  if(added)openInbox();
 }
 
 /* ===== FOTO DA FATURA — OCR 100% LOCAL (Tesseract.js, a imagem nunca sai do dispositivo) ===== */
@@ -3755,7 +3860,7 @@ async function bioUnlock(silent){
     const pk={ challenge:crypto.getRandomValues(new Uint8Array(32)), rpId:location.hostname, userVerification:'required', timeout:60000 };
     if(c.id) pk.allowCredentials=[{type:'public-key',id:_b64urlBuf(c.id)}]; // ajuda o telemóvel a encontrar a passkey
     await navigator.credentials.get({publicKey:pk});
-    sessionStorage.setItem('nesto-unlock','1'); const e=document.getElementById('lock'); if(e)e.remove(); try{liquidarPendentes();render();}catch(_){} try{lembreteBoot();}catch(_){} return true;
+    sessionStorage.setItem('nesto-unlock','1'); const e=document.getElementById('lock'); if(e)e.remove(); try{liquidarPendentes();render();}catch(_){} try{lembreteBoot();}catch(_){} try{resetIdle();}catch(_){} return true;
   }catch(e){ if(!silent){ const m=document.getElementById('lockMsg'); if(m)m.textContent='Biometria: '+(e.name||'cancelada')+' — usa o código'; } return false; }
 }
 
@@ -3810,7 +3915,7 @@ function pinBack(){ _pinEntry=_pinEntry.slice(0,-1); pinUpdate(); }
 function pinSubmit(){
   if(_pinEntry===String(state.settings.codigo)){
     sessionStorage.setItem('nesto-unlock','1'); const e=document.getElementById('lock'); if(e)e.remove();
-    try{liquidarPendentes();render();}catch(_){} try{lembreteBoot();}catch(_){}
+    try{liquidarPendentes();render();}catch(_){} try{lembreteBoot();}catch(_){} try{resetIdle();}catch(_){}
   } else {
     const box=document.getElementById('lockBox'); if(box){box.classList.add('shake');setTimeout(()=>box.classList.remove('shake'),420);}
     const m=document.getElementById('lockMsg'); if(m)m.textContent='PIN errado';
@@ -3819,11 +3924,45 @@ function pinSubmit(){
 }
 document.addEventListener('keydown',e=>{ if(!document.getElementById('lock'))return; if(/^[0-9]$/.test(e.key))pinPress(e.key); else if(e.key==='Backspace'){e.preventDefault();pinBack();} });
 
+/* ===== Bloqueio automático por inatividade ===== */
+let _idleTimer=null,_idleArmed=0;
+function resetIdle(){
+  if(_idleTimer){clearTimeout(_idleTimer);_idleTimer=null;}
+  const min=+((state&&state.settings&&state.settings.autoLockMin))||0;
+  if(!min || !(state&&state.settings&&state.settings.codigo)) return; // desligado ou sem código
+  if(document.getElementById('lock')) return;                          // já bloqueado
+  _idleTimer=setTimeout(autoLock, min*60000);
+}
+function autoLock(){
+  if(!(state&&state.settings&&state.settings.codigo)) return;
+  if(document.getElementById('lock')) return;
+  sessionStorage.removeItem('nesto-unlock');
+  try{closePop();}catch(e){} try{closeBack();}catch(e){}
+  showLock();
+}
+function _bumpIdle(){ const n=Date.now(); if(n-_idleArmed<1500)return; _idleArmed=n; resetIdle(); }
+['mousedown','keydown','touchstart','scroll','mousemove'].forEach(ev=>document.addEventListener(ev,_bumpIdle,{passive:true,capture:true}));
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden)_bumpIdle(); });
+/* barra "Nova versão disponível" quando o service worker apanha um update */
+function showUpdateBar(){
+  if(document.getElementById('updBar'))return;
+  const d=document.createElement('div'); d.id='updBar';
+  d.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:18px;z-index:10001;background:var(--acc);color:#1f1f20;padding:10px 14px;border-radius:12px;box-shadow:var(--sh-lg);display:flex;gap:10px;align-items:center;font-size:14px;font-weight:700';
+  d.innerHTML='Nova versão disponível <button id="updGo" style="background:#1f1f20;color:#f6f4f1;border:0;border-radius:8px;padding:6px 12px;cursor:pointer;font-weight:700;font-family:inherit">Atualizar</button>';
+  document.body.appendChild(d);
+  document.getElementById('updGo').onclick=()=>{ try{hardRefresh();}catch(e){location.reload();} };
+}
+
 load();try{liquidarPendentes();}catch(e){}render();showLock();
 try{ if(!state.settings.onboarded && isUnlocked()) showOnboarding(); }catch(e){}
 try{lembreteBoot();}catch(e){}
+try{resetIdle();}catch(e){}
 if(dbxOn()) syncOpen().then(()=>dailyBackup()).catch(()=>{}); else if(fsOn()) fsBootRestore().then(()=>dailyBackup()).catch(()=>{});
-if('serviceWorker' in navigator && location.protocol.indexOf('http')===0){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
+if('serviceWorker' in navigator && location.protocol.indexOf('http')===0){
+  navigator.serviceWorker.register('sw.js').then(reg=>{
+    reg.addEventListener('updatefound',()=>{ const nw=reg.installing; if(!nw)return; nw.addEventListener('statechange',()=>{ if(nw.state==='installed' && navigator.serviceWorker.controller) showUpdateBar(); }); });
+  }).catch(()=>{});
+}
 /* desvanece a splash depois da casa se desenhar (a app já está pronta por baixo) */
 (function(){var sp=document.getElementById('splash');if(!sp){document.documentElement.style.background='';return;}setTimeout(function(){sp.classList.add('done');setTimeout(function(){if(sp&&sp.parentNode)sp.parentNode.removeChild(sp);document.documentElement.style.background='';},650);},1700);})();
 </script>
